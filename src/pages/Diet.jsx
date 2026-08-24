@@ -56,8 +56,8 @@ export default function Diet() {
   return (
     <>
       <TopBar title="饮食" right={<span className="tag">{weekOfMonth()}周</span>} />
-      <div className="page">
-        <div className="card">
+      <div className="page theme-diet">
+        <div className="card washi tint">
           <h3>🍱 {today} 三餐</h3>
           <label>早餐</label>
           <textarea value={diet.breakfast} onChange={e => save('breakfast', e.target.value)} placeholder="计划/实际吃了什么" />
@@ -67,7 +67,7 @@ export default function Diet() {
           <textarea value={diet.dinner} onChange={e => save('dinner', e.target.value)} placeholder="计划/实际吃了什么" />
         </div>
 
-        <div className="card">
+        <div className="card tint">
           <h3>💊 维生素打卡</h3>
           {['vitamin_a', 'vitamin_b'].map((col, i) => (
             <div key={col} className="check-row">
@@ -78,14 +78,14 @@ export default function Diet() {
           ))}
         </div>
 
-        <div className="card">
+        <div className="card tint">
           <h3>📝 本周饮食复盘（{mondayOf()} 起）</h3>
           <textarea value={weekReview} onChange={e => setWeekReview(e.target.value)} placeholder="总结本周饮食规律、营养摄入、改进方向…" />
           <button className="btn" style={{ marginTop: 10 }} onClick={saveWeekReview}>保存周复盘</button>
           {msg && <p className="muted center" style={{ fontSize: 13 }}>{msg}</p>}
         </div>
 
-        <div className="card">
+        <div className="card tint">
           <h3>📜 近期记录</h3>
           {history.length === 0 && <p className="sub">暂无</p>}
           {history.map(h => (

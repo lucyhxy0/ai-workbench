@@ -103,25 +103,33 @@ ALTER TABLE public.chat_messages    ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
 -- 通用策略：用户只能操作自己的数据
+-- （先 DROP 再 CREATE，保证可重复执行不报 "已存在" 错误）
 -- ============================================================
+DROP POLICY IF EXISTS "own rows" ON public.briefings;
 CREATE POLICY "own rows" ON public.briefings
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "own rows" ON public.diet;
 CREATE POLICY "own rows" ON public.diet
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "own rows" ON public.trading;
 CREATE POLICY "own rows" ON public.trading
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "own rows" ON public.monthly_tasks;
 CREATE POLICY "own rows" ON public.monthly_tasks
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "own rows" ON public.calendar_events;
 CREATE POLICY "own rows" ON public.calendar_events
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "own rows" ON public.chat_sessions;
 CREATE POLICY "own rows" ON public.chat_sessions
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "own rows" ON public.chat_messages;
 CREATE POLICY "own rows" ON public.chat_messages
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 

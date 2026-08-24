@@ -78,12 +78,12 @@ export default function Trading() {
   return (
     <>
       <TopBar title="操盘" right={<span className="tag">{weekOfMonth()}周</span>} />
-      <div className="page">
-        <div className="card">
+      <div className="page theme-trade">
+        <div className="card washi tint">
           <h3>📈 {today} 操作记录</h3>
           <textarea value={rec.operations} onChange={e => save('operations', e.target.value)} placeholder="今日买卖、持仓变动、触发原因…" />
         </div>
-        <div className="card">
+        <div className="card tint">
           <h3>📝 今日复盘</h3>
           <textarea value={rec.review} onChange={e => save('review', e.target.value)} placeholder="执行了哪些计划？哪里没做好？情绪如何？" />
           <button className="btn" style={{ marginTop: 10 }} disabled={analyzing} onClick={analyze}>
@@ -91,13 +91,13 @@ export default function Trading() {
           </button>
           {aiText && <div className="bubble ai" style={{ marginTop: 10, maxWidth: '100%' }}>{aiText}</div>}
         </div>
-        <div className="card">
+        <div className="card tint">
           <h3>📊 本周操盘复盘（{mondayOf()} 起）</h3>
           <textarea value={weekReview} onChange={e => setWeekReview(e.target.value)} placeholder="本周交易表现、盈亏、纪律执行情况…" />
           <button className="btn" style={{ marginTop: 10 }} onClick={saveWeekReview}>保存周复盘</button>
           {msg && <p className="muted center" style={{ fontSize: 13 }}>{msg}</p>}
         </div>
-        <div className="card">
+        <div className="card tint">
           <h3>📜 近期记录</h3>
           {history.map(h => (
             <div key={h.date} className="check-row" style={{ borderBottom: '1px solid var(--border)' }}>

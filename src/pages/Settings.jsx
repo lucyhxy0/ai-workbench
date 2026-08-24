@@ -76,8 +76,8 @@ export default function Settings() {
   return (
     <>
       <TopBar title="设置" />
-      <div className="page">
-        <div className="card">
+      <div className="page theme-set">
+        <div className="card washi tint">
           <h3>🔗 Notion 同步</h3>
           <label>Integration Token</label>
           <input value={token} onChange={e => setToken(e.target.value)} placeholder="ntn_..." type="password" />
@@ -91,7 +91,7 @@ export default function Settings() {
           </p>
         </div>
 
-        <div className="card">
+        <div className="card tint">
           <h3>📅 月度固定事务</h3>
           {tasks.map(t => (
             <div key={t.id} className="check-row" style={{ borderBottom: '1px solid var(--border)' }}>

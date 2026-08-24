@@ -28,11 +28,14 @@ export default function Login() {
   }
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: 28, display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '100vh' }}>
+    <div style={{ maxWidth: 480, margin: '0 auto', padding: 28, display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '100vh', background: 'var(--cream)' }}>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <div style={{ fontSize: 46 }}>🛠️</div>
-        <h1 style={{ margin: '8px 0 4px' }}>AI 工作台</h1>
-        <p className="muted" style={{ fontSize: 13 }}>个人生活与交易管理助手</p>
+        <div className="polaroid" style={{ transform: 'rotate(-3deg)' }}>
+          <div className="ph">🐱</div>
+          <div className="cap">hi, I'm Lucy</div>
+        </div>
+        <h1 className="hand" style={{ margin: '14px 0 2px', fontSize: 44, color: 'var(--ink)' }}>Lucy</h1>
+        <p className="muted" style={{ fontSize: 13 }}>数字人生手账 · 你的 AI 生活助手</p>
       </div>
       <form onSubmit={handle}>
         <label>邮箱</label>

@@ -62,8 +62,8 @@ export default function CalendarPage() {
   return (
     <>
       <TopBar title="日历" />
-      <div className="page">
-        <div className="card">
+      <div className="page theme-cal">
+        <div className="card washi tint">
           <div className="row" style={{ alignItems: 'center', marginBottom: 10 }}>
             <button className="btn ghost sm" onClick={prev}>‹</button>
             <span style={{ flex: 1, textAlign: 'center', fontWeight: 700 }}>{year} 年 {month + 1} 月</span>
@@ -88,7 +88,7 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        <div className="card">
+        <div className="card tint">
           <h3>📌 {sel} 事件</h3>
           {events.map(e => (
             <div key={e.id} className="check-row" style={{ borderBottom: '1px solid var(--border)' }}>
@@ -103,7 +103,7 @@ export default function CalendarPage() {
           {events.length === 0 && <p className="sub">当天暂无事件</p>}
         </div>
 
-        <div className="card">
+        <div className="card tint">
           <h3>➕ 添加事件</h3>
           <label>标题</label>
           <input value={title} onChange={e => setTitle(e.target.value)} placeholder="如：朋友生日、旅行、体检" />

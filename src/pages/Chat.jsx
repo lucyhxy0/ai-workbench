@@ -71,7 +71,7 @@ export default function Chat() {
         title="对话"
         right={<button className="btn ghost sm" onClick={newSession}>+新</button>}
       />
-      <div className="page" style={{ paddingBottom: 8, display: 'flex', flexDirection: 'column' }}>
+      <div className="page theme-chat" style={{ paddingBottom: 8, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8 }}>
           {sessions.map(s => (
             <span key={s.id} className={`tag ${s.id === cur ? '' : ''}`} style={{ cursor: 'pointer', background: s.id === cur ? 'var(--primary)' : 'var(--bg-elev)', color: s.id === cur ? '#04201a' : 'var(--text)' }} onClick={() => openSession(s.id)}>
