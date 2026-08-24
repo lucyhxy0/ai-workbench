@@ -1,0 +1,145 @@
+-- ============================================================
+-- AI 工作台 数据库 Schema
+-- 在 Supabase SQL Editor 中执行本文件
+-- 所有表按 user_id 隔离，启用 RLS 行级安全
+-- ============================================================
+
+-- 1. 每日晨报
+CREATE TABLE IF NOT EXISTS public.briefings (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  date          date NOT NULL DEFAULT CURRENT_DATE,
+  us_market     text DEFAULT '',          -- 美股夜盘
+  economy       text DEFAULT '',          -- 经济重要信息
+  domestic      text DEFAULT '',          -- 国内重大事项
+  summary       text DEFAULT '',          -- AI 综合摘要
+  created_at    timestamptz DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_briefings_user_date ON public.briefings(user_id, date);
+
+-- 2. 饮食
+CREATE TABLE IF NOT EXISTS public.diet (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  date          date NOT NULL DEFAULT CURRENT_DATE,
+  breakfast     text DEFAULT '',
+  lunch         text DEFAULT '',
+  dinner        text DEFAULT '',
+  vitamin_a     boolean DEFAULT false,
+  vitamin_b     boolean DEFAULT false,
+  weekly_review text DEFAULT '',          -- 每周饮食复盘
+  created_at    timestamptz DEFAULT now(),
+  updated_at    timestamptz DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_diet_user_date ON public.diet(user_id, date);
+
+-- 3. 操盘复盘
+CREATE TABLE IF NOT EXISTS public.trading (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  date          date NOT NULL DEFAULT CURRENT_DATE,
+  operations    text DEFAULT '',          -- 当日操作记录
+  review        text DEFAULT '',          -- 复盘笔记
+  ai_analysis   text DEFAULT '',          -- AI 分析
+  created_at    timestamptz DEFAULT now(),
+  updated_at    timestamptz DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_trading_user_date ON public.trading(user_id, date);
+
+-- 4. 月度固定事务
+CREATE TABLE IF NOT EXISTS public.monthly_tasks (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name          text NOT NULL,           -- 如：还信用卡、猫咪驱虫
+  day_of_month  int NOT NULL CHECK (day_of_month BETWEEN 1 AND 28),
+  category      text DEFAULT '其他',     -- 财务/宠物/健康...
+  note          text DEFAULT '',
+  last_done     date,                    -- 上次完成日期
+  active        boolean DEFAULT true,
+  created_at    timestamptz DEFAULT now()
+);
+
+-- 5. 日历事件（一次性重要事项）
+CREATE TABLE IF NOT EXISTS public.calendar_events (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  event_date    date NOT NULL,
+  title         text NOT NULL,
+  note          text DEFAULT '',
+  importance    int DEFAULT 1,           -- 1 普通 2 重要 3 紧急
+  created_at    timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_events_user_date ON public.calendar_events(user_id, event_date);
+
+-- 6. 对话会话
+CREATE TABLE IF NOT EXISTS public.chat_sessions (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title         text DEFAULT '新对话',
+  created_at    timestamptz DEFAULT now()
+);
+
+-- 7. 对话消息
+CREATE TABLE IF NOT EXISTS public.chat_messages (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id    uuid NOT NULL REFERENCES public.chat_sessions(id) ON DELETE CASCADE,
+  user_id       uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role          text NOT NULL CHECK (role IN ('user','assistant')),
+  content       text NOT NULL,
+  created_at    timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_msg_session ON public.chat_messages(session_id, created_at);
+
+-- ============================================================
+-- 启用行级安全 (RLS)
+-- ============================================================
+ALTER TABLE public.briefings        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.diet             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.trading          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.monthly_tasks    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.calendar_events  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_sessions    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_messages    ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
+-- 通用策略：用户只能操作自己的数据
+-- ============================================================
+CREATE POLICY "own rows" ON public.briefings
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "own rows" ON public.diet
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "own rows" ON public.trading
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "own rows" ON public.monthly_tasks
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "own rows" ON public.calendar_events
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "own rows" ON public.chat_sessions
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "own rows" ON public.chat_messages
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- ============================================================
+-- 触发器：更新 updated_at
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.touch_updated()
+RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_diet_updated ON public.diet;
+CREATE TRIGGER trg_diet_updated BEFORE UPDATE ON public.diet
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated();
+
+DROP TRIGGER IF EXISTS trg_trading_updated ON public.trading;
+CREATE TRIGGER trg_trading_updated BEFORE UPDATE ON public.trading
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated();
