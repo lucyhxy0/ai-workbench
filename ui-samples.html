@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lucy OS UI 风格样板</title>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Ma+Shan+Zheng&family=Patrick+Hand&family=Indie+Flower&family=ZCOOL+KuaiLe&family=Noto+Serif+SC:wght@500;700&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #ece8de;
+  font-family: "Quicksand", -apple-system, "PingFang SC", sans-serif;
+  padding: 24px 16px 40px;
+  color: #4a4234;
+}
+header { text-align: center; margin-bottom: 28px; }
+header h1 { font-family: "Ma Shan Zheng", cursive; font-size: 38px; margin: 0 0 6px; }
+header p { margin: 0; color: #8a826f; font-size: 15px; }
+.wrap { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+.sample { text-align: center; }
+.sample > h2 { font-size: 17px; margin: 10px 0 4px; font-weight: 700; }
+.sample > .desc { font-size: 13px; color: #8a826f; margin: 0 0 10px; }
+.phone {
+  width: 360px;
+  height: 720px;
+  background: #FBF6EC;
+  border: 10px solid #fff;
+  border-radius: 44px;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.16);
+  overflow: hidden;
+  position: relative;
+  margin: 0 auto;
+}
+.inner { height: 100%; overflow-y: auto; padding: 18px 14px 90px; }
+
+/* ---------- 通用骨架 ---------- */
+.status-strip { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+.status-card { padding: 11px 12px; }
+.status-card .k { font-size: 12px; opacity: 0.75; }
+.status-card .v { font-size: 22px; font-weight: 700; }
+.status-card .bar { height: 6px; background: rgba(255,255,255,0.55); border-radius: 99px; margin-top: 7px; overflow: hidden; }
+.status-card .bar i { display: block; height: 100%; border-radius: 99px; }
+
+.fin-daily { position: relative; padding: 16px 13px 13px; margin-bottom: 14px; }
+.fin-daily .clip { position: absolute; top: -9px; right: 16px; width: 24px; height: 24px; background: linear-gradient(135deg,#d6d6d6,#fafafa); border: 1px solid #c4c4c4; border-radius: 3px; transform: rotate(10deg); }
+.fin-daily .head { border-bottom: 2px solid #4a4234; padding-bottom: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; }
+.fin-daily .head .t { font-size: 16px; font-weight: 700; }
+.fin-daily .head .sub { font-size: 11px; opacity: 0.7; }
+.fin-daily .cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 12px; }
+.fin-daily .col .h { font-weight: 700; margin-bottom: 5px; }
+.fin-daily .col .row { margin-bottom: 4px; display: flex; justify-content: space-between; }
+
+.checkin { margin-bottom: 14px; }
+.checkin .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; }
+.checkin .lbl { font-weight: 700; font-size: 15px; }
+.checkin .prog { font-size: 12px; opacity: 0.7; }
+.checkin .grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.checkin .item { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.checkin .box { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+.checkin .add { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+
+.ai-tip { padding: 13px; }
+.ai-tip .title { font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.ai-tip .txt { font-size: 13px; line-height: 1.55; opacity: 0.9; }
+
+.bot-nav {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 64px;
+  display: flex; justify-content: space-around; align-items: center;
+  font-size: 11px; backdrop-filter: blur(6px);
+}
+.bot-nav .tab { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.bot-nav .ic { font-size: 20px; }
+
+/* ---------- 样本 A：撕边手账 ---------- */
+.style-a .inner { background: #FBF6EC; }
+.style-a .greet {
+  display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;
+}
+.style-a .greet-left { flex: 1; }
+.style-a .hi { font-family: "Caveat", cursive; font-size: 32px; line-height: 1; color: #c97e6e; }
+.style-a .name { font-family: "Ma Shan Zheng", cursive; font-size: 42px; line-height: 1.1; }
+.style-a .date { font-size: 13px; opacity: 0.75; margin-top: 4px; }
+.style-a .sticky {
+  background: #D6F2E6; padding: 9px 10px; font-family: "Ma Shan Zheng", cursive;
+  font-size: 14px; transform: rotate(-3deg); box-shadow: 2px 3px 0 rgba(0,0,0,0.08);
+}
+.style-a .card-a {
+  background: #FFFDF7; border: 1.5px dashed #d8c8ad;
+  border-radius: 18px 6px 22px 10px;
+  box-shadow: 4px 5px 0 rgba(74,66,52,0.08);
+  position: relative;
+}
+.style-a .card-a::before {
+  content: ""; position: absolute; top: -7px; left: 18px; width: 66px; height: 16px;
+  background: rgba(248,201,160,0.75); border-radius: 2px; transform: rotate(-4deg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+.style-a .status-card { border: 1.5px dashed #d8c8ad; border-radius: 16px 6px 14px 8px; }
+.style-a .status-card:nth-child(1) { background: #FBD9D2; }
+.style-a .status-card:nth-child(2) { background: #D6F2E6; transform: rotate(1deg); }
+.style-a .status-card:nth-child(3) { background: #FDF3B8; transform: rotate(-1deg); }
+.style-a .status-card:nth-child(4) { background: #C9B6E4; }
+.style-a .fin-daily { background: #FFFDF7; border: 1.5px dashed #d8c8ad; border-radius: 10px 18px 8px 20px; }
+.style-a .checkin .card-a { padding: 12px; }
+.style-a .checkin .box { border: 2px solid #c97e6e; border-radius: 8px; background: #fff; color: #c97e6e; }
+.style-a .checkin .add { border: 2px dashed #c97e6e; border-radius: 8px; color: #c97e6e; }
+.style-a .ai-tip { background: #FFFDF7; border: 1.5px dashed #d8c8ad; border-radius: 14px 8px 18px 10px; }
+.style-a .bot-nav { background: rgba(255,253,247,0.95); border-top: 1.5px dashed #d8c8ad; }
+
+/* ---------- 样本 B：方格本便利贴 ---------- */
+.style-b .inner {
+  background-color: #FBF6EC;
+  background-image:
+    linear-gradient(#e5ded0 1px, transparent 1px),
+    linear-gradient(90deg, #e5ded0 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.style-b .greet { margin-bottom: 14px; text-align: center; }
+.style-b .hi { font-family: "Indie Flower", cursive; font-size: 30px; color: #7a6a52; }
+.style-b .name { font-family: "ZCOOL KuaiLe", cursive; font-size: 44px; line-height: 1; }
+.style-b .date { font-size: 13px; color: #8a826f; margin-top: 4px; }
+.style-b .note-b {
+  background: #FDF3B8; padding: 12px; margin-bottom: 14px;
+  box-shadow: 3px 4px 0 rgba(0,0,0,0.12); transform: rotate(-1.5deg);
+  position: relative;
+}
+.style-b .note-b::after {
+  content: ""; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  width: 44px; height: 14px; background: rgba(255,255,255,0.6); border: 1px solid rgba(0,0,0,0.06);
+}
+.style-b .note-b .title { font-family: "ZCOOL KuaiLe", cursive; font-size: 16px; margin-bottom: 6px; }
+.style-b .status-card { border-radius: 2px; box-shadow: 2px 3px 0 rgba(0,0,0,0.1); }
+.style-b .status-card:nth-child(1) { background: #FBD9D2; transform: rotate(-1deg); }
+.style-b .status-card:nth-child(2) { background: #D6F2E6; }
+.style-b .status-card:nth-child(3) { background: #FDF3B8; transform: rotate(1.5deg); }
+.style-b .status-card:nth-child(4) { background: #C9B6E4; transform: rotate(-1deg); }
+.style-b .fin-daily { background: #fff; box-shadow: 3px 4px 0 rgba(0,0,0,0.1); border-radius: 2px; transform: rotate(0.5deg); }
+.style-b .fin-daily .head .t { font-family: "Indie Flower", cursive; font-size: 18px; }
+.style-b .checkin .note-b { transform: rotate(0.5deg); }
+.style-b .checkin .box { border: 2px solid #c97e6e; border-radius: 50%; background: #fff; }
+.style-b .checkin .add { border: 2px dashed #c97e6e; border-radius: 50%; color: #c97e6e; }
+.style-b .ai-tip { background: #D6F2E6; box-shadow: 3px 4px 0 rgba(0,0,0,0.1); transform: rotate(-1deg); border-radius: 2px; }
+.style-b .bot-nav { background: rgba(255,255,255,0.96); border-top: 1px solid #e5ded0; }
+.style-b .greet-b { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+.style-b .polaroid-b { background: #fff; padding: 6px 6px 16px; box-shadow: 3px 4px 0 rgba(0,0,0,0.12); transform: rotate(-2deg); flex-shrink: 0; }
+.style-b .polaroid-b .ph { width: 74px; height: 74px; background: linear-gradient(135deg,#F8C9A0,#C9B6E4); display: flex; align-items: center; justify-content: center; font-size: 34px; }
+.style-b .polaroid-b .cap { font-family: "Caveat", cursive; font-size: 14px; text-align: center; margin-top: 5px; color: #7a6a52; }
+.style-b .greet-txt .hi { font-family: "Indie Flower", cursive; font-size: 28px; color: #7a6a52; }
+.style-b .greet-txt .name { font-family: "ZCOOL KuaiLe", cursive; font-size: 40px; line-height: 1; }
+.style-b .greet-txt .date { font-size: 13px; color: #8a826f; margin-top: 4px; }
+.style-b .checkin .note { font-size: 11px; color: #8a826f; margin-top: 8px; text-align: right; }
+.style-b .inbox-item { display: flex; gap: 10px; padding: 10px; margin-bottom: 12px; align-items: center; }
+.style-b .inbox-thumb { width: 54px; height: 54px; border-radius: 2px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #fff; }
+.style-b .inbox-main { flex: 1; min-width: 0; }
+.style-b .inbox-main .t { font-size: 13px; font-weight: 700; line-height: 1.3; }
+.style-b .inbox-main .meta { font-size: 11px; color: #8a826f; margin-top: 4px; display: flex; gap: 6px; align-items: center; }
+.style-b .badge { font-size: 10px; padding: 1px 7px; border-radius: 99px; background: rgba(255,255,255,0.7); }
+.style-b .tag-sm { font-size: 10px; padding: 1px 7px; border-radius: 99px; background: #FDF3B8; }
+.style-b .cat-bar { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 14px; }
+.style-b .cat-chip { font-size: 11px; padding: 4px 10px; border-radius: 99px; background: #fff; border: 1px solid #e5ded0; }
+.style-b .cat-chip.on { background: #c97e6e; color: #fff; border-color: #c97e6e; }
+.style-b .cat-pill { font-size: 10px; padding: 1px 8px; border-radius: 99px; color: #4a4234; font-weight: 700; }
+.style-b .c-cat { background: #F8C9A0; }
+.style-b .c-fin { background: #F9E79F; }
+.style-b .c-lego { background: #B5DCEE; }
+.style-b .c-cook { background: #A8E6CF; }
+.style-b .c-music { background: #C9B6E4; }
+.style-b .c-other { background: #E5DED0; }
+
+/* ---------- 样本 C：复古剪贴簿 ---------- */
+.style-c .inner { background: #f0e6d2; }
+.style-c .greet { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+.style-c .polaroid { background: #fff; padding: 7px 7px 18px; box-shadow: 3px 4px 0 rgba(0,0,0,0.12); transform: rotate(2deg); }
+.style-c .polaroid .ph { width: 72px; height: 72px; background: #e0d2bc; display: flex; align-items: center; justify-content: center; font-size: 32px; }
+.style-c .hi { font-family: "Noto Serif SC", serif; font-size: 22px; color: #6b5a45; }
+.style-c .name { font-family: "Noto Serif SC", serif; font-size: 34px; line-height: 1; }
+.style-c .date { font-size: 12px; color: #8a826f; margin-top: 4px; letter-spacing: 0.5px; }
+.style-c .card-c {
+  background: #f7eedb; border: 1.5px dotted #b9aa8e;
+  border-radius: 3px; box-shadow: 2px 3px 0 rgba(0,0,0,0.08);
+  position: relative;
+}
+.style-c .card-c::before {
+  content: ""; position: absolute; top: -7px; left: 16px; width: 56px; height: 14px;
+  background: #d6c4a3; opacity: 0.8; transform: rotate(-3deg);
+}
+.style-c .status-card { border: 1.5px dotted #b9aa8e; border-radius: 3px; background: #f7eedb; }
+.style-c .status-card:nth-child(2) { transform: rotate(1deg); }
+.style-c .status-card:nth-child(3) { transform: rotate(-1deg); }
+.style-c .fin-daily { background: #f7eedb; border: 1.5px dotted #b9aa8e; border-radius: 3px; }
+.style-c .fin-daily .head { border-bottom: 1.5px dotted #4a4234; }
+.style-c .checkin .card-c { padding: 12px; }
+.style-c .checkin .box { border: 2px solid #8a7a60; border-radius: 3px; background: #fff; }
+.style-c .checkin .add { border: 2px dashed #8a7a60; border-radius: 3px; color: #8a7a60; }
+.style-c .ai-tip { background: #f7eedb; border: 1.5px dotted #b9aa8e; border-radius: 3px; }
+.style-c .bot-nav { background: rgba(247,238,219,0.96); border-top: 1.5px dotted #b9aa8e; }
+
+.pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; background: rgba(255,255,255,0.6); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Lucy OS 手账风格样板</h1>
+  <p>你提到现在 UI 太圆润，我按手账画风做了 3 套，字体和卡片气质都不一样，挑一个我帮你落地。</p>
+</header>
+
+<div class="wrap">
+
+  <!-- 样本 A -->
+  <div class="sample">
+    <div class="phone style-a">
+      <div class="inner">
+        <div class="greet">
+          <div class="greet-left">
+            <div class="hi">Good Morning,</div>
+            <div class="name">Lucy</div>
+            <div class="date">8月25日 星期二</div>
+          </div>
+          <div class="sticky">You got this!</div>
+        </div>
+
+        <div class="status-strip">
+          <div class="status-card">
+            <div class="k">精力</div>
+            <div class="v">72%</div>
+            <div class="bar"><i style="width:72%; background:#e8998a;"></i></div>
+          </div>
+          <div class="status-card">
+            <div class="k">睡眠</div>
+            <div class="v">7.5h</div>
+            <div class="bar"><i style="width:75%; background:#5dcaa5;"></i></div>
+          </div>
+          <div class="status-card">
+            <div class="k">心情</div>
+            <div class="v">:)</div>
+            <div class="bar"><i style="width:80%; background:#f0bc5e;"></i></div>
+          </div>
+          <div class="status-card">
+            <div class="k">身体</div>
+            <div class="v">良好</div>
+            <div class="bar"><i style="width:80%; background:#8f84d4;"></i></div>
+          </div>
+        </div>
+
+        <div class="fin-daily">
+          <div class="clip"></div>
+          <div class="head">
+            <span class="t">财经日报</span>
+            <span class="sub">Lucy Finance Daily</span>
+          </div>
+          <div class="cols">
+            <div class="col">
+              <div class="h">全球市场</div>
+              <div class="row"><span>纳斯达克</span><span>+0.60%</span></div>
+              <div class="row"><span>标普500</span><span>+0.35%</span></div>
+              <div class="row"><span>道琼斯</span><span>-0.10%</span></div>
+            </div>
+            <div class="col">
+              <div class="h">A股关注</div>
+              <div class="row"><span>#AI算力</span></div>
+              <div class="row"><span>#半导体</span></div>
+              <div class="row"><span>#军工</span></div>
+            </div>
+            <div class="col">
+              <div class="h">AI观点</div>
+              <div class="row" style="font-size:11px; line-height:1.45;">今天不建议追涨，等回调确认机会。</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="checkin">
+          <div class="card-a">
+            <div class="top">
+              <span class="lbl">每日打卡</span>
+              <span class="prog">1/2 完成</span>
+            </div>
+            <div class="grid">
+              <div class="item"><div class="box">✓</div><span>维D</span></div>
+              <div class="item"><div class="box"></div><span>肌醇</span></div>
+              <div class="item"><div class="add">+</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ai-tip card-a">
+          <div class="title">Lucy AI 今日建议</div>
+          <div class="txt">你昨晚睡眠不错，建议早餐多加蛋白质；肌醇可以随午餐一起服用。</div>
+        </div>
+      </div>
+
+      <div class="bot-nav">
+        <div class="tab"><span class="ic">🏠</span><span>Home</span></div>
+        <div class="tab"><span class="ic">🌿</span><span>Life</span></div>
+        <div class="tab"><span class="ic">🤖</span><span>AI</span></div>
+        <div class="tab"><span class="ic">📅</span><span>Calendar</span></div>
+        <div class="tab"><span class="ic">✉️</span><span>Inbox</span></div>
+      </div>
+    </div>
+    <h2>样本 A：撕边手账</h2>
+    <div class="desc">不规则撕纸边 + 和纸胶带 + 手写体 Caveat / 马善政</div>
+  </div>
+
+  <!-- 样本 B (已选) -->
+  <div class="sample">
+    <div class="phone style-b">
+      <div class="inner">
+        <div class="greet-b">
+          <div class="polaroid-b">
+            <div class="ph">🐱</div>
+            <div class="cap">Today w/ Mochi</div>
+          </div>
+          <div class="greet-txt">
+            <div class="hi">Good Morning,</div>
+            <div class="name">Lucy</div>
+            <div class="date">8月25日 星期二</div>
+          </div>
+        </div>
+
+        <div class="note-b">
+          <div class="title">Today's Highlight</div>
+          <div style="font-size:13px; line-height:1.5;">早餐已记录 ·  today plan: 午盘复盘 + 阅读 30min</div>
+        </div>
+
+        <div class="status-strip">
+          <div class="status-card">
+            <div class="k">精力</div>
+            <div class="v">72%</div>
+            <div class="bar"><i style="width:72%; background:#e8998a;"></i></div>
+          </div>
+          <div class="status-card">
+            <div class="k">睡眠</div>
+            <div class="v">7.5h</div>
+            <div class="bar"><i style="width:75%; background:#5dcaa5;"></i></div>
+          </div>
+          <div class="status-card">
+            <div class="k">心情</div>
+            <div class="v">:)</div>
+            <div class="bar"><i style="width:80%; background:#f0bc5e;"></i></div>
+          </div>
+          <div class="status-card">
+            <div class="k">身体</div>
+            <div class="v">良好</div>
+            <div class="bar"><i style="width:80%; background:#8f84d4;"></i></div>
+          </div>
+        </div>
+
+        <div class="fin-daily">
+          <div class="head">
+            <span class="t">Finance Daily</span>
+            <span class="sub">08/25 update</span>
+          </div>
+          <div class="cols">
+            <div class="col">
+              <div class="h">Global</div>
+              <div class="row"><span>Nasdaq</span><span>+0.60%</span></div>
+              <div class="row"><span>S&P500</span><span>+0.35%</span></div>
+            </div>
+            <div class="col">
+              <div class="h">Tags</div>
+              <span class="pill">#AI算力</span> <span class="pill">#半导体</span>
+            </div>
+            <div class="col">
+              <div class="h">AI View</div>
+              <div class="row" style="font-size:11px; line-height:1.45;">等回调确认机会，勿追涨。</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="checkin">
+          <div class="note-b" style="transform:rotate(1deg);">
+            <div class="top">
+              <span class="lbl">每日打卡</span>
+              <span class="prog">1/3 完成</span>
+            </div>
+            <div class="grid">
+              <div class="item"><div class="box">✓</div><span>维D</span></div>
+              <div class="item"><div class="box"></div><span>肌醇</span></div>
+              <div class="item"><div class="box">✓</div><span>冥想</span></div>
+              <div class="item"><div class="add">+</div></div>
+            </div>
+            <div class="note">维D / 肌醇 每日重置；自定义项长期保留</div>
+          </div>
+        </div>
+
+        <div class="ai-tip">
+          <div class="title">Lucy AI tips</div>
+          <div class="txt">睡眠 OK，早餐建议加蛋白质；肌醇随午餐服用更好。</div>
+        </div>
+      </div>
+
+      <div class="bot-nav">
+        <div class="tab"><span class="ic">🏠</span><span>Home</span></div>
+        <div class="tab"><span class="ic">🌿</span><span>Life</span></div>
+        <div class="tab"><span class="ic">🤖</span><span>AI</span></div>
+        <div class="tab"><span class="ic">📅</span><span>Calendar</span></div>
+        <div class="tab"><span class="ic">✉️</span><span>Inbox</span></div>
+      </div>
+    </div>
+    <h2>样本 B：方格本便利贴（已选）</h2>
+    <div class="desc">方格纸底 + 旋转便利贴 + 拍立得 + Patrick Hand / 站酷快乐体</div>
+  </div>
+
+  <!-- 样本 C -->
+  <div class="sample">
+    <div class="phone style-c">
+      <div class="inner">
+        <div class="greet">
+          <div class="polaroid"><div class="ph">🐱</div></div>
+          <div>
+            <div class="hi">早安,</div>
+            <div class="name">Lucy</div>
+            <div class="date">8月25日 星期二</div>
+          </div>
+        </div>
+
+        <div class="status-strip">
+          <div class="status-card">
+            <div class="k">精力</div>
+            <div class="v">72%</div>
+            <div class="bar"><i style="width:72%; background:#a38b6d;"></i></div>
+          </div>
+          <div class="status-card">
+            <div class="k">睡眠</div>
+            <div class="v">7.5h</div>
+            <div class="bar"><i style="width:75%; background:#7c9e6d;"></i></div>
+          </div>
+          <div class="status-card">
+            <div class="k">心情</div>
+            <div class="v">:)</div>
+            <div class="bar"><i style="width:80%; background:#bfa05a;"></i></div>
+          </div>
+          <div class="status-card">
+            <div class="k">身体</div>
+            <div class="v">良好</div>
+            <div class="bar"><i style="width:80%; background:#8f84b8;"></i></div>
+          </div>
+        </div>
+
+        <div class="fin-daily">
+          <div class="head">
+            <span class="t">财经日报</span>
+            <span class="sub">08/25</span>
+          </div>
+          <div class="cols">
+            <div class="col">
+              <div class="h">全球市场</div>
+              <div class="row"><span>纳斯达克</span><span>+0.60%</span></div>
+              <div class="row"><span>标普500</span><span>+0.35%</span></div>
+            </div>
+            <div class="col">
+              <div class="h">关注</div>
+              <span class="pill">#AI算力</span> <span class="pill">#半导体</span>
+            </div>
+            <div class="col">
+              <div class="h">AI观点</div>
+              <div class="row" style="font-size:11px; line-height:1.45;">不建议追涨，等回调确认。</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="checkin">
+          <div class="card-c">
+            <div class="top">
+              <span class="lbl">每日打卡</span>
+              <span class="prog">1/2 完成</span>
+            </div>
+            <div class="grid">
+              <div class="item"><div class="box">✓</div><span>维D</span></div>
+              <div class="item"><div class="box"></div><span>肌醇</span></div>
+              <div class="item"><div class="add">+</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ai-tip card-c">
+          <div class="title">Lucy AI 今日建议</div>
+          <div class="txt">昨晚睡眠不错，早餐加蛋白质；肌醇随午餐服用。</div>
+        </div>
+      </div>
+
+      <div class="bot-nav">
+        <div class="tab"><span class="ic">🏠</span><span>Home</span></div>
+        <div class="tab"><span class="ic">🌿</span><span>Life</span></div>
+        <div class="tab"><span class="ic">🤖</span><span>AI</span></div>
+        <div class="tab"><span class="ic">📅</span><span>Calendar</span></div>
+        <div class="tab"><span class="ic">✉️</span><span>Inbox</span></div>
+      </div>
+    </div>
+    <h2>样本 C：复古剪贴簿</h2>
+    <div class="desc">牛皮纸 + 拍立得 + 虚线边框 + 衬线中文 / 打字机英文</div>
+  </div>
+
+  <!-- 样本 B · 收藏夹 Inbox -->
+  <div class="sample">
+    <div class="phone style-b">
+      <div class="inner">
+        <div class="greet-b">
+          <div class="polaroid-b">
+            <div class="ph">📥</div>
+            <div class="cap">My Inbox</div>
+          </div>
+          <div class="greet-txt">
+            <div class="hi">AI Inbox,</div>
+            <div class="name">收藏夹</div>
+            <div class="date">已收录 12 条</div>
+          </div>
+        </div>
+
+        <div class="cat-bar">
+          <span class="cat-chip on">全部</span>
+          <span class="cat-chip">猫</span>
+          <span class="cat-chip">经济股票</span>
+          <span class="cat-chip">乐高</span>
+          <span class="cat-chip">做饭</span>
+          <span class="cat-chip">听歌</span>
+          <span class="cat-chip">其他</span>
+        </div>
+
+        <div class="inbox-item note-b" style="transform:rotate(0.5deg);">
+          <div class="inbox-thumb" style="background:#FB7299;">📺</div>
+          <div class="inbox-main">
+            <div class="t">3分钟看懂美股夜盘逻辑</div>
+            <div class="meta"><span class="badge">B站</span><span class="cat-pill c-fin">经济股票</span></div>
+          </div>
+        </div>
+
+        <div class="inbox-item note-b" style="transform:rotate(-0.5deg);">
+          <div class="inbox-thumb" style="background:#161823;">🎵</div>
+          <div class="inbox-main">
+            <div class="t">猫咪驱虫注意事项全流程</div>
+            <div class="meta"><span class="badge">抖音</span><span class="cat-pill c-cat">猫</span></div>
+          </div>
+        </div>
+
+        <div class="inbox-item note-b" style="transform:rotate(1deg);">
+          <div class="inbox-thumb" style="background:#5dcaa5;">🍳</div>
+          <div class="inbox-main">
+            <div class="t">低卡早餐便当一周不重样</div>
+            <div class="meta"><span class="badge">B站</span><span class="cat-pill c-cook">做饭</span></div>
+          </div>
+        </div>
+
+        <div class="inbox-item note-b" style="transform:rotate(-1deg);">
+          <div class="inbox-thumb" style="background:#B5DCEE;">🧱</div>
+          <div class="inbox-main">
+            <div class="t">乐高机械组 + 电机编程入门</div>
+            <div class="meta"><span class="badge">B站</span><span class="cat-pill c-lego">乐高</span></div>
+          </div>
+        </div>
+
+        <div class="inbox-item note-b" style="transform:rotate(0.5deg);">
+          <div class="inbox-thumb" style="background:#C9B6E4;">🎧</div>
+          <div class="inbox-main">
+            <div class="t">深夜 Lo-Fi 助眠歌单</div>
+            <div class="meta"><span class="badge">抖音</span><span class="cat-pill c-music">听歌</span></div>
+          </div>
+        </div>
+
+        <div class="note-b" style="text-align:center; cursor:pointer; font-weight:700; color:#c97e6e;">+ 粘贴抖音 / B站链接收录</div>
+        <div style="font-size:11px; color:#8a826f; text-align:center; margin-top:6px;">AI 按标题自动归类，可手动改到其他类</div>
+      </div>
+
+      <div class="bot-nav">
+        <div class="tab"><span class="ic">🏠</span><span>Home</span></div>
+        <div class="tab"><span class="ic">🌿</span><span>Life</span></div>
+        <div class="tab"><span class="ic">🤖</span><span>AI</span></div>
+        <div class="tab"><span class="ic">📅</span><span>Calendar</span></div>
+        <div class="tab"><span class="ic">✉️</span><span>Inbox</span></div>
+      </div>
+    </div>
+    <h2>样本 B · 收藏夹 Inbox（自动分类）</h2>
+    <div class="desc">同款方格便利贴风，B站/抖音 收藏自动归入 猫/经济股票/乐高/做饭/听歌/其他</div>
+  </div>
+
+</div>
+</body>
+</html>

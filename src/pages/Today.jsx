@@ -13,9 +13,12 @@ export default function Today() {
   const [trading, setTrading] = useState(null)
   const [events, setEvents] = useState([])
   const [dueTasks, setDueTasks] = useState([])
+  const [customItems, setCustomItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [genBusy, setGenBusy] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const [newLabel, setNewLabel] = useState('')
 
   async function load() {
     const { data: { user } } = await supabase.auth.getUser()
@@ -34,6 +37,9 @@ export default function Today() {
     setEvents(ev || [])
     setDueTasks(mt || [])
 
+    const { data: ci } = await supabase.from('checkin_items').select('*').eq('user_id', uid).order('created_at')
+    setCustomItems(ci || [])
+
     if (d) setDiet(d)
     else { const { data: nd } = await supabase.from('diet').insert({ user_id: uid, date: today }).select().single(); setDiet(nd) }
     setTrading(tr)
@@ -47,6 +53,27 @@ export default function Today() {
     const next = { ...diet, [col]: !diet[col] }
     setDiet(next)
     await supabase.from('diet').update({ [col]: next[col] }).eq('id', diet.id)
+  }
+
+  // 自定义打卡项（用户级，长期保留，不随日期重置）
+  async function toggleCustom(id) {
+    const item = customItems.find(c => c.id === id)
+    if (!item) return
+    const next = { ...item, done: !item.done }
+    setCustomItems(ci => ci.map(c => c.id === id ? next : c))
+    await supabase.from('checkin_items').update({ done: next.done }).eq('id', id)
+  }
+  async function addCustom() {
+    const label = newLabel.trim()
+    if (!label) return
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: row } = await supabase.from('checkin_items').insert({ user_id: user.id, label, done: false }).select().single()
+    if (row) setCustomItems(ci => [...ci, row])
+    setNewLabel(''); setAdding(false)
+  }
+  async function removeCustom(id) {
+    setCustomItems(ci => ci.filter(c => c.id !== id))
+    await supabase.from('checkin_items').delete().eq('id', id)
   }
 
   async function generateBriefing() {
@@ -66,14 +93,15 @@ export default function Today() {
     }
   }
 
-  const vitCount = diet ? (diet.vitamin_a ? 1 : 0) + (diet.vitamin_b ? 1 : 0) : 0
+  const vitCount = diet ? (diet.vitamin_d ? 1 : 0) + (diet.inositol ? 1 : 0) : 0
   const reviewDone = !!(trading && (trading.review || trading.operations))
+  const customMapped = customItems.map(c => ({
+    key: c.id, label: c.label, on: c.done, custom: true, click: () => toggleCustom(c.id)
+  }))
   const checkItems = [
-    { key: 'a', label: '维A', on: diet?.vitamin_a, click: () => toggleVitamin('vitamin_a') },
-    { key: 'b', label: '维B', on: diet?.vitamin_b, click: () => toggleVitamin('vitamin_b') },
-    { key: 'diet', label: '饮食', on: !!diet, click: () => nav('/diet') },
-    { key: 'trade', label: '复盘', on: reviewDone, click: () => nav('/trading') },
-    { key: 'todo', label: '待办', on: dueTasks.length === 0, click: () => nav('/settings') }
+    { key: 'vd', label: '维D', on: diet?.vitamin_d, click: () => toggleVitamin('vitamin_d') },
+    { key: 'ino', label: '肌醇', on: diet?.inositol, click: () => toggleVitamin('inositol') },
+    ...customMapped
   ]
   const checkDone = checkItems.filter(i => i.on).length
 
@@ -88,7 +116,7 @@ export default function Today() {
         <div className="greeting">
           <div className="hi">Good Morning.</div>
           <div className="name">Lucy</div>
-          <div className="date">{prettyDate()}</div>
+          <div className="date">{prettyDate().split(' ')[0]}<br />{prettyDate().split(' ')[1]}</div>
           <div className="right">
             <div className="sticky mint" style={{ maxWidth: 120 }}>You got this! 💗</div>
           </div>
@@ -168,16 +196,34 @@ export default function Today() {
         <div className="checkin" style={{ marginBottom: 14 }}>
           <div className="top">
             <span className="lbl">🌿 每日打卡</span>
-            <span className="prog">{checkDone}/5 完成</span>
+            <span className="prog">{checkDone}/{checkItems.length} 完成</span>
           </div>
           <div className="grid">
             {checkItems.map(it => (
               <div key={it.key} className="item" onClick={it.click}>
                 <div className={`box ${it.on ? 'on' : ''}`}>{it.on ? '✓' : ''}</div>
                 <span>{it.label}</span>
+                {it.custom && <span className="rm" onClick={(e) => { e.stopPropagation(); removeCustom(it.key) }}>×</span>}
               </div>
             ))}
+            <div className="item add" onClick={() => setAdding(true)}>
+              <div className="box">+</div>
+              <span>添加</span>
+            </div>
           </div>
+          <div className="note">维D / 肌醇 每日重置；自定义项长期保留</div>
+          {adding && (
+            <div className="add-form" onClick={(e) => e.stopPropagation()}>
+              <input
+                autoFocus
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                placeholder="自定义打卡项，如：喝水2L"
+                onKeyDown={(e) => e.key === 'Enter' && addCustom()}
+              />
+              <button className="btn" onClick={addCustom}>加</button>
+            </div>
+          )}
         </div>
 
         {/* AI 今日建议 */}

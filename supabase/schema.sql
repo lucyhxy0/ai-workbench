@@ -25,8 +25,11 @@ CREATE TABLE IF NOT EXISTS public.diet (
   breakfast     text DEFAULT '',
   lunch         text DEFAULT '',
   dinner        text DEFAULT '',
-  vitamin_a     boolean DEFAULT false,
-  vitamin_b     boolean DEFAULT false,
+  afternoon_tea text DEFAULT '',          -- 下午茶
+  drinks        text DEFAULT '',          -- 饮品
+  vitamin_d     boolean DEFAULT false,    -- 维生素D
+  inositol      boolean DEFAULT false,    -- 肌醇
+  custom_checkins jsonb DEFAULT '[]'::jsonb, -- 自定义打卡项 [{id,label,done}]
   weekly_review text DEFAULT '',          -- 每周饮食复盘
   created_at    timestamptz DEFAULT now(),
   updated_at    timestamptz DEFAULT now()
@@ -66,6 +69,7 @@ CREATE TABLE IF NOT EXISTS public.calendar_events (
   event_date    date NOT NULL,
   title         text NOT NULL,
   note          text DEFAULT '',
+  event_time    time,                    -- 日计划时间轴（可空）
   importance    int DEFAULT 1,           -- 1 普通 2 重要 3 紧急
   created_at    timestamptz DEFAULT now()
 );
@@ -151,3 +155,51 @@ CREATE TRIGGER trg_diet_updated BEFORE UPDATE ON public.diet
 DROP TRIGGER IF EXISTS trg_trading_updated ON public.trading;
 CREATE TRIGGER trg_trading_updated BEFORE UPDATE ON public.trading
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated();
+
+-- ============================================================
+-- 2026-08-25 功能扩展：新增字段（幂等，可重复执行）
+-- 已建好库的用户，只需在 SQL Editor 执行本段即可追加字段，
+-- 不会影响已有数据与策略。
+-- ============================================================
+ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS afternoon_tea text DEFAULT '';
+ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS drinks text DEFAULT '';
+ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS vitamin_d boolean DEFAULT false;
+ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS inositol boolean DEFAULT false;
+ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS custom_checkins jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE public.calendar_events ADD COLUMN IF NOT EXISTS event_time time;
+
+-- ============================================================
+-- 2026-08-25 新增表：自定义打卡项 + 收藏夹 Inbox
+-- ============================================================
+
+-- 8. 自定义打卡项（用户级，长期保留，不随日期重置）
+CREATE TABLE IF NOT EXISTS public.checkin_items (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  label       text NOT NULL,
+  done        boolean DEFAULT false,
+  created_at  timestamptz DEFAULT now()
+);
+ALTER TABLE public.checkin_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own rows" ON public.checkin_items;
+CREATE POLICY "own rows" ON public.checkin_items
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- 9. 收藏夹 Inbox（B站/抖音 自动收录 + 自动分类）
+CREATE TABLE IF NOT EXISTS public.favorites (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  source      text DEFAULT 'bilibili',          -- bilibili / douyin
+  title       text NOT NULL,
+  url         text DEFAULT '',
+  thumb       text DEFAULT '',
+  category    text DEFAULT '其他',              -- 猫/经济股票/乐高/做饭/听歌/其他
+  created_at  timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_fav_user ON public.favorites(user_id, created_at);
+ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own rows" ON public.favorites;
+CREATE POLICY "own rows" ON public.favorites
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+

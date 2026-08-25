@@ -14,6 +14,7 @@ export default function CalendarPage() {
   const [allEvents, setAllEvents] = useState({})
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
+  const [time, setTime] = useState('')
   const [importance, setImportance] = useState(1)
   const [editing, setEditing] = useState(null)
 
@@ -31,7 +32,7 @@ export default function CalendarPage() {
 
   async function loadDay(date) {
     const { data: { user } } = await supabase.auth.getUser()
-    const { data } = await supabase.from('calendar_events').select('*').eq('user_id', user.id).eq('event_date', date).order('importance', { ascending: false })
+    const { data } = await supabase.from('calendar_events').select('*').eq('user_id', user.id).eq('event_date', date)
     setEvents(data || [])
   }
 
@@ -49,21 +50,53 @@ export default function CalendarPage() {
   async function add() {
     if (!title.trim()) return
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('calendar_events').insert({ user_id: user.id, event_date: sel, title: title.trim(), note: note.trim(), importance })
-    setTitle(''); setNote(''); setImportance(1); await load(); await loadDay(sel)
+    const payload = { user_id: user.id, event_date: sel, title: title.trim(), note: note.trim(), importance, event_time: time || null }
+    if (editing) {
+      await supabase.from('calendar_events').update(payload).eq('id', editing)
+    } else {
+      await supabase.from('calendar_events').insert(payload)
+    }
+    setTitle(''); setNote(''); setTime(''); setImportance(1); setEditing(null); await load()
   }
 
   async function del(id) {
-    await supabase.from('calendar_events').delete().eq('id', id); await load(); await loadDay(sel)
+    await supabase.from('calendar_events').delete().eq('id', id); await load()
   }
 
+  function startEdit(e) {
+    setEditing(e.id); setTitle(e.title); setNote(e.note || ''); setTime(e.event_time || ''); setImportance(e.importance)
+  }
+
+  // 时间轴：按时间排序（无时间的排在最后）
+  const timeline = [...events].sort((a, b) => (a.event_time || '99:99').localeCompare(b.event_time || '99:99'))
   const cells = monthMatrix(year, month)
 
   return (
     <>
       <TopBar title="日历" />
       <div className="page theme-cal">
+        {/* 日计划时间轴 */}
         <div className="card washi tint">
+          <h3>🗓 {sel} 日计划</h3>
+          {timeline.length === 0 && <p className="sub">当天暂无安排，下面添加一条吧～</p>}
+          <div className="timeline">
+            {timeline.map(e => (
+              <div key={e.id} className="tl-item">
+                <span className="tl-dot" style={{ background: e.importance >= 3 ? 'var(--coral)' : e.importance === 2 ? 'var(--lemon)' : 'var(--primary)' }} />
+                <span className="tl-time">{e.event_time || ''}</span>
+                <div className="tl-body">
+                  <div className="t">{e.title}</div>
+                  {e.note && <div className="n">{e.note}</div>}
+                </div>
+                <span className="tl-del" onClick={() => del(e.id)}>删</span>
+                <span className="tl-del" style={{ marginLeft: 8 }} onClick={() => startEdit(e)}>改</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 月历 */}
+        <div className="card tint">
           <div className="row" style={{ alignItems: 'center', marginBottom: 10 }}>
             <button className="btn ghost sm" onClick={prev}>‹</button>
             <span style={{ flex: 1, textAlign: 'center', fontWeight: 700 }}>{year} 年 {month + 1} 月</span>
@@ -88,25 +121,13 @@ export default function CalendarPage() {
           </div>
         </div>
 
+        {/* 添加 / 编辑事件 */}
         <div className="card tint">
-          <h3>📌 {sel} 事件</h3>
-          {events.map(e => (
-            <div key={e.id} className="check-row" style={{ borderBottom: '1px solid var(--border)' }}>
-              <span className="dot" style={{ background: e.importance >= 3 ? 'var(--danger)' : e.importance === 2 ? 'var(--warn)' : 'var(--primary)' }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14 }}>{e.title}</div>
-                {e.note && <div className="sub">{e.note}</div>}
-              </div>
-              <button className="btn danger sm" onClick={() => del(e.id)}>删</button>
-            </div>
-          ))}
-          {events.length === 0 && <p className="sub">当天暂无事件</p>}
-        </div>
-
-        <div className="card tint">
-          <h3>➕ 添加事件</h3>
+          <h3>{editing ? '✏️ 修改事件' : '➕ 添加日计划'}</h3>
+          <label>时间（可选）</label>
+          <input type="time" value={time} onChange={e => setTime(e.target.value)} />
           <label>标题</label>
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="如：朋友生日、旅行、体检" />
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="如：9:00 吃药、朋友生日、体检" />
           <label>备注</label>
           <input value={note} onChange={e => setNote(e.target.value)} placeholder="可选" />
           <label>重要程度</label>
@@ -115,7 +136,8 @@ export default function CalendarPage() {
             <option value={2}>重要</option>
             <option value={3}>紧急</option>
           </select>
-          <button className="btn" style={{ marginTop: 10 }} onClick={add}>添加</button>
+          <button className="btn" style={{ marginTop: 10 }} onClick={add}>{editing ? '保存修改' : '添加到日计划'}</button>
+          {editing && <button className="btn ghost" style={{ marginTop: 8 }} onClick={() => { setEditing(null); setTitle(''); setNote(''); setTime(''); setImportance(1) }}>取消</button>}
         </div>
       </div>
     </>

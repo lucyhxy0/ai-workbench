@@ -30,5 +30,9 @@ export const api = {
   // 生成晨报
   generateBriefing: (date) => post('/briefing', { date }),
   // Notion 同步
-  notionSync: (payload) => post('/notion', payload)
+  notionSync: (payload) => post('/notion', payload),
+  // 收藏夹 Inbox
+  favoritesAdd: (payload) => post('/favorites', { action: 'add', ...payload }),
+  favoritesSync: () => post('/favorites', { action: 'sync' }),
+  favoritesRecat: (id, title) => post('/favorites', { action: 'recat', id, title })
 }
