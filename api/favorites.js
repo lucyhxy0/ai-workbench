@@ -35,28 +35,39 @@ async function classify(title = '') {
 
 async function syncBilibili(sb, userId) {
   const sess = process.env.BILIBILI_SESSDATA
-  if (!sess) return { synced: 0, note: '未配置 BILIBILI_SESSDATA' }
+  if (!sess) return { synced: 0, note: '未配置 BILIBILI_SESSDATA（去 Vercel 环境变量补上）' }
+  // 云端调用 B站必须带 Referer + User-Agent，否则会被风控/当作未登录拦掉
+  const headers = {
+    Cookie: `SESSDATA=${sess}`,
+    Referer: 'https://www.bilibili.com',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'
+  }
   // 拉取收藏夹列表
-  const folders = await fetch('https://api.bilibili.com/x/v3/fav/folder/created/list-all', {
-    headers: { Cookie: `SESSDATA=${sess}` }
-  }).then(r => r.json()).catch(() => null)
+  const folders = await fetch('https://api.bilibili.com/x/v3/fav/folder/created/list-all', { headers })
+    .then(r => r.json()).catch(() => null)
+  if (!folders || folders.code !== 0) {
+    return { synced: 0, note: `B站返回异常 code=${folders?.code ?? 'null'}（SESSDATA 可能失效或缺失，请重新复制）` }
+  }
   const list = folders?.data?.list || []
+  if (list.length === 0) {
+    return { synced: 0, note: '未读到收藏夹（SESSDATA 可能失效，或收藏夹为空）' }
+  }
   let synced = 0
   for (const f of list) {
-    const res = await fetch(`https://api.bilibili.com/x/v3/fav/resource/list?media_id=${f.id}&ps=20&pn=1`, {
-      headers: { Cookie: `SESSDATA=${sess}` }
-    }).then(r => r.json()).catch(() => null)
+    const res = await fetch(`https://api.bilibili.com/x/v3/fav/resource/list?media_id=${f.id}&ps=20&pn=1`, { headers })
+      .then(r => r.json()).catch(() => null)
+    if (!res || res.code !== 0) continue
     for (const it of res?.data?.medias || []) {
       const title = it.title || ''
       const cat = await classify(title)
       const { error } = await sb.from('favorites').insert({
         user_id: userId, source: 'bilibili', title,
-        url: it.link || `https://www.bilibili.com/video/${it.bvid}`, category: cat
+        url: `https://www.bilibili.com/video/${it.bvid}`, category: cat
       })
       if (!error) synced++
     }
   }
-  return { synced, note: 'B站同步完成' }
+  return { synced, note: synced > 0 ? 'B站同步完成' : '已读收藏夹但 0 条可收录（可能都已收录过，或 SESSDATA 失效）' }
 }
 
 export default async function handler(req, res) {
