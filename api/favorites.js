@@ -1,5 +1,6 @@
 // api/favorites.js — 收藏夹 Inbox：B站/抖音 收录 + 自动分类
 import { createClient } from '@supabase/supabase-js'
+import crypto from 'node:crypto'
 
 const CATS = ['猫', '经济股票', '乐高', '做饭', '听歌', '其他']
 const URL = process.env.SUPABASE_URL
@@ -19,6 +20,18 @@ async function fetchTimeout(url, opts = {}, ms = 8000) {
   } finally {
     clearTimeout(t)
   }
+}
+
+// ===== B站 WBI 签名（2023 起收藏夹等接口强制要求，否则 code=-400）=====
+const WBI_PERM = [46,47,18,2,53,8,23,32,15,50,10,31,58,3,45,35,27,43,5,49,33,9,42,19,29,28,14,39,12,38,41,13,37,48,7,16,24,55,40,61,26,17,0,1,60,51,30,4,22,25,54,21,56,59,6,63,57,62,11,36,20,34,44,52]
+function wbiMixin(imgKey, subKey) {
+  const o = imgKey + subKey
+  return WBI_PERM.map(i => o[i]).join('').slice(0, 32)
+}
+function wbiSign(params, mixinKey) {
+  const p = { ...params, wts: Math.floor(Date.now() / 1000) }
+  const q = Object.keys(p).sort().map(k => `${encodeURIComponent(k)}=${encodeURIComponent(p[k])}`).join('&')
+  return { ...p, w_rid: crypto.createHash('md5').update(q + mixinKey).digest('hex') }
 }
 
 // 本地关键词分类（毫秒级、不联网，覆盖绝大多数场景）
@@ -70,41 +83,59 @@ async function classify(title = '') {
 async function syncBilibili(sb, userId) {
   const sess = process.env.BILIBILI_SESSDATA
   if (!sess) return { synced: 0, note: '未配置 BILIBILI_SESSDATA（去 Vercel 环境变量补上，并勾选 Production）' }
-  // 云端调用 B站必须带 Referer + User-Agent，否则会被风控/当作未登录拦掉
-  const headers = {
-    Cookie: `SESSDATA=${sess}`,
-    Referer: 'https://www.bilibili.com',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'
+  const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'
+  const H = { Referer: 'https://www.bilibili.com', 'User-Agent': UA, Cookie: `SESSDATA=${sess}` }
+
+  // 1) 取登录态 mid + WBI 密钥（nav 不需签名，公开返回 wbi_img）
+  const navJ = await fetchTimeout('https://api.bilibili.com/x/web-interface/nav', { headers: H })
+    .then(r => r.json()).catch(() => null)
+  if (!navJ || navJ.code !== 0) {
+    const c = navJ?.code
+    return { synced: 0, note: c === -101 ? 'SESSDATA 已失效（B站显示未登录），请重新从浏览器复制' : `B站导航接口异常 code=${c ?? 'null'}（网络或令牌问题）` }
   }
-  // 拉取收藏夹列表
-  const folders = await fetchTimeout('https://api.bilibili.com/x/v3/fav/folder/created/list-all', { headers })
+  if (!navJ.data?.isLogin) {
+    return { synced: 0, note: 'SESSDATA 已失效（B站显示未登录），请重新从浏览器复制 Cookie 里的 SESSDATA' }
+  }
+  const mid = navJ.data.mid
+  const img = navJ.data.wbi_img.img_url.split('/').pop().split('.')[0]
+  const sub = navJ.data.wbi_img.sub_url.split('/').pop().split('.')[0]
+  const mixin = wbiMixin(img, sub)
+
+  // 2) 收藏夹列表（必须带 up_mid + WBI 签名，否则 code=-400）
+  const flParams = wbiSign({ up_mid: mid, pn: 1, ps: 20 }, mixin)
+  const folders = await fetchTimeout('https://api.bilibili.com/x/v3/fav/folder/created/list?' + new URLSearchParams(flParams), { headers: H })
     .then(r => r.json()).catch(() => null)
   if (!folders || folders.code !== 0) {
-    return { synced: 0, note: `B站返回异常 code=${folders?.code ?? 'null'}（SESSDATA 可能失效或缺失，请重新复制）` }
+    return { synced: 0, note: `收藏夹接口异常 code=${folders?.code ?? 'null'}（SESSDATA 可能失效，请重新复制）` }
   }
   const list = folders?.data?.list || []
-  if (list.length === 0) {
-    return { synced: 0, note: '未读到收藏夹（SESSDATA 可能失效，或收藏夹为空）' }
-  }
+  if (list.length === 0) return { synced: 0, note: '没有收藏夹（或收藏夹为空）' }
+
+  // 去重：已收录的 url 跳过，避免重复刷
+  const { data: ex } = await sb.from('favorites').select('url').eq('user_id', userId)
+  const have = new Set((ex || []).map(e => e.url))
+
   let synced = 0
   const CAP = 120 // 单次同步数量上限，避免超时
   for (const f of list) {
     if (synced >= CAP) break
-    const res = await fetchTimeout(`https://api.bilibili.com/x/v3/fav/resource/list?media_id=${f.id}&ps=50&pn=1`, { headers })
+    const rlParams = wbiSign({ media_id: f.id, pn: 1, ps: 50 }, mixin)
+    const res = await fetchTimeout('https://api.bilibili.com/x/v3/fav/resource/list?' + new URLSearchParams(rlParams), { headers: H })
       .then(r => r.json()).catch(() => null)
     if (!res || res.code !== 0) continue
     for (const it of res?.data?.medias || []) {
       if (synced >= CAP) break
+      const url = `https://www.bilibili.com/video/${it.bvid}`
+      if (have.has(url)) continue
       const title = it.title || ''
       const cat = await classify(title)
       const { error } = await sb.from('favorites').insert({
-        user_id: userId, source: 'bilibili', title,
-        url: `https://www.bilibili.com/video/${it.bvid}`, category: cat
+        user_id: userId, source: 'bilibili', title, url, category: cat
       })
-      if (!error) synced++
+      if (!error) { synced++; have.add(url) }
     }
   }
-  return { synced, note: synced > 0 ? 'B站同步完成' : '已读收藏夹但 0 条可收录（可能都已收录过，或 SESSDATA 失效）' }
+  return { synced, note: synced > 0 ? 'B站同步完成' : '已读收藏夹，但 0 条新增（可能都已收录过）' }
 }
 
 export default async function handler(req, res) {
