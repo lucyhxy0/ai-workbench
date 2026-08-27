@@ -18,6 +18,15 @@ export default async function handler(req, res) {
   const user = `请估算以下各餐热量(千卡)，只输出JSON:\n` +
     `早餐: ${safe.breakfast}\n午餐: ${safe.lunch}\n晚餐: ${safe.dinner}\n下午茶: ${safe.afternoon_tea}\n饮品: ${safe.drinks}`
 
+  // 中英文 key 都能映射到标准字段，避免 AI 输出中文 key 时前端取不到值
+  const KEYMAP = {
+    breakfast: 'breakfast', 早餐: 'breakfast', 早饭: 'breakfast',
+    lunch: 'lunch', 午餐: 'lunch', 午饭: 'lunch',
+    dinner: 'dinner', 晚餐: 'dinner', 晚饭: 'dinner',
+    afternoon_tea: 'afternoon_tea', 下午茶: 'afternoon_tea',
+    drinks: 'drinks', 饮品: 'drinks', 饮料: 'drinks', 喝水: 'drinks'
+  }
+
   try {
     const r = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
@@ -25,7 +34,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [
-          { role: 'system', content: '你是营养师，根据食物文字描述估算每餐热量(千卡)。只输出JSON：{breakfast,lunch,dinner,afternoon_tea,drinks}，每个为数字或0。不要解释。' },
+          { role: 'system', content: '你是营养师，根据食物文字描述估算每餐热量(千卡)。只输出JSON，键用中文：{"早餐":数字,"午餐":数字,"晚餐":数字,"下午茶":数字,"饮品":数字}。不要解释。' },
           { role: 'user', content: user }
         ],
         response_format: { type: 'json_object' },
@@ -35,13 +44,18 @@ export default async function handler(req, res) {
     const j = await r.json()
     const c = j.choices?.[0]?.message?.content || '{}'
     const o = JSON.parse(c)
+    const out = {}
+    for (const [k, v] of Object.entries(o)) {
+      const f = KEYMAP[String(k).trim()]
+      if (f) out[f] = Number(v) || 0
+    }
     res.json({
       calories: {
-        breakfast: Number(o.breakfast) || 0,
-        lunch: Number(o.lunch) || 0,
-        dinner: Number(o.dinner) || 0,
-        afternoon_tea: Number(o.afternoon_tea) || 0,
-        drinks: Number(o.drinks) || 0
+        breakfast: out.breakfast || 0,
+        lunch: out.lunch || 0,
+        dinner: out.dinner || 0,
+        afternoon_tea: out.afternoon_tea || 0,
+        drinks: out.drinks || 0
       }
     })
   } catch (e) {

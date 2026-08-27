@@ -65,6 +65,8 @@ export default function Diet() {
 
   async function estimate() {
     if (!diet) return
+    const anyFilled = MEALS.some(m => (diet[m.f] || '').trim())
+    if (!anyFilled) { setMsg('先在各餐框写吃了啥，再点估算～'); setTimeout(() => setMsg(''), 2500); return }
     setEstimating(true)
     try {
       const meals = {}
