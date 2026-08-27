@@ -14,7 +14,6 @@ function mondayOf(date = new Date()) {
 export default function Trading() {
   const today = todayStr()
   const [rec, setRec] = useState(null)
-  const [weekReview, setWeekReview] = useState('')
   const [history, setHistory] = useState([])
   const [analyzing, setAnalyzing] = useState(false)
   const [aiText, setAiText] = useState('')
@@ -27,8 +26,6 @@ export default function Trading() {
     let { data: d } = await supabase.from('trading').select('*').eq('user_id', uid).eq('date', today).maybeSingle()
     if (!d) { const { data: nd } = await supabase.from('trading').insert({ user_id: uid, date: today }).select().single(); d = nd }
     setRec(d)
-    const { data: wr } = await supabase.from('trading').select('weekly_review').eq('user_id', uid).eq('date', mondayOf()).maybeSingle()
-    setWeekReview(wr?.weekly_review || '')
     const { data: h } = await supabase.from('trading').select('date,operations,review').eq('user_id', uid).order('date', { ascending: false }).limit(10)
     setHistory(h || [])
   }
@@ -64,15 +61,6 @@ export default function Trading() {
     }
   }
 
-  async function saveWeekReview() {
-    const { data: { user } } = await supabase.auth.getUser()
-    const m = mondayOf()
-    let { data: d } = await supabase.from('trading').select('*').eq('user_id', user.id).eq('date', m).maybeSingle()
-    if (!d) { const { data: nd } = await supabase.from('trading').insert({ user_id: user.id, date: m }).select().single(); d = nd }
-    await supabase.from('trading').update({ weekly_review: weekReview }).eq('id', d.id)
-    setMsg('周复盘已保存 ✓'); setTimeout(() => setMsg(''), 2000)
-  }
-
   if (!rec) return <div className="empty">加载中…</div>
 
   return (
@@ -90,12 +78,6 @@ export default function Trading() {
             {analyzing ? 'AI 分析中…' : '✨ AI 辅助分析'}
           </button>
           {aiText && <div className="bubble ai" style={{ marginTop: 10, maxWidth: '100%' }}>{aiText}</div>}
-        </div>
-        <div className="card tint">
-          <h3>📊 本周操盘复盘（{mondayOf()} 起）</h3>
-          <textarea value={weekReview} onChange={e => setWeekReview(e.target.value)} placeholder="本周交易表现、盈亏、纪律执行情况…" />
-          <button className="btn" style={{ marginTop: 10 }} onClick={saveWeekReview}>保存周复盘</button>
-          {msg && <p className="muted center" style={{ fontSize: 13 }}>{msg}</p>}
         </div>
         <div className="card tint">
           <h3>📜 近期记录</h3>

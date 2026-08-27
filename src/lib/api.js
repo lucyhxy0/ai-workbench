@@ -34,5 +34,7 @@ export const api = {
   // 收藏夹 Inbox
   favoritesAdd: (payload) => post('/favorites', { action: 'add', ...payload }),
   favoritesSync: () => post('/favorites', { action: 'sync' }),
-  favoritesRecat: (id, title) => post('/favorites', { action: 'recat', id, title })
+  favoritesRecat: (id, title) => post('/favorites', { action: 'recat', id, title }),
+  // 估算三餐热量
+  caloriesEstimate: (meals) => post('/calories', { meals })
 }

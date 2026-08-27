@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import TopBar from '../components/TopBar.jsx'
@@ -19,6 +19,8 @@ export default function Today() {
   const [showDetail, setShowDetail] = useState(false)
   const [adding, setAdding] = useState(false)
   const [newLabel, setNewLabel] = useState('')
+  const [petPhoto, setPetPhoto] = useState('')
+  const fileRef = useRef(null)
 
   async function load() {
     const { data: { user } } = await supabase.auth.getUser()
@@ -36,6 +38,7 @@ export default function Today() {
     setBriefing(b)
     setEvents(ev || [])
     setDueTasks(mt || [])
+    setPetPhoto(localStorage.getItem('lucy_pet_' + uid) || '')
 
     const { data: ci } = await supabase.from('checkin_items').select('*').eq('user_id', uid).order('created_at')
     setCustomItems(ci || [])
@@ -48,11 +51,25 @@ export default function Today() {
 
   useEffect(() => { load() }, [])
 
-  async function toggleVitamin(col) {
+  async function toggleVit(col) {
     if (!diet) return
     const next = { ...diet, [col]: !diet[col] }
     setDiet(next)
     await supabase.from('diet').update({ [col]: next[col] }).eq('id', diet.id)
+  }
+
+  function pickPhoto() { fileRef.current?.click() }
+  async function onPhoto(e) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    const { data: { user } } = await supabase.auth.getUser()
+    const r = new FileReader()
+    r.onload = () => {
+      const d = r.result
+      setPetPhoto(d)
+      if (user) localStorage.setItem('lucy_pet_' + user.id, d)
+    }
+    r.readAsDataURL(f)
   }
 
   // 自定义打卡项（用户级，长期保留，不随日期重置）
@@ -93,17 +110,17 @@ export default function Today() {
     }
   }
 
-  const vitCount = diet ? (diet.vitamin_d ? 1 : 0) + (diet.inositol ? 1 : 0) : 0
+  const vitFields = [
+    { key: 'vd', label: '维D', am: 'vitamin_d_am', pm: 'vitamin_d_pm' },
+    { key: 'ino', label: '肌醇', am: 'inositol_am', pm: 'inositol_pm' }
+  ]
+  const vitCols = ['vitamin_d_am', 'vitamin_d_pm', 'inositol_am', 'inositol_pm']
+  const vitCount = diet ? vitCols.filter(c => diet[c]).length : 0
   const reviewDone = !!(trading && (trading.review || trading.operations))
   const customMapped = customItems.map(c => ({
     key: c.id, label: c.label, on: c.done, custom: true, click: () => toggleCustom(c.id)
   }))
-  const checkItems = [
-    { key: 'vd', label: '维D', on: diet?.vitamin_d, click: () => toggleVitamin('vitamin_d') },
-    { key: 'ino', label: '肌醇', on: diet?.inositol, click: () => toggleVitamin('inositol') },
-    ...customMapped
-  ]
-  const checkDone = checkItems.filter(i => i.on).length
+  const checkDone = customMapped.filter(i => i.on).length
 
   if (loading) return <div className="empty">加载中…</div>
 
@@ -117,14 +134,12 @@ export default function Today() {
           <div className="hi">Good Morning.</div>
           <div className="name">Lucy</div>
           <div className="date">{prettyDate().split(' ')[0]}<br />{prettyDate().split(' ')[1]}</div>
-          <div className="right">
-            <div className="sticky mint" style={{ maxWidth: 120 }}>You got this! 💗</div>
-          </div>
           <div className="pet">
-            <div className="polaroid">
-              <div className="ph">🐱</div>
-              <div className="cap">my cat</div>
+            <div className="polaroid" onClick={pickPhoto} title="点击更换照片">
+              <div className="ph">{petPhoto ? <img src={petPhoto} alt="Tobey" /> : '🐱'}</div>
+              <div className="cap">Tobey</div>
             </div>
+            <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPhoto} />
           </div>
         </div>
 
@@ -137,8 +152,8 @@ export default function Today() {
           </div>
           <div className="status-card" style={{ background: 'var(--peach)' }}>
             <div className="k">💊 维生素</div>
-            <div className="v">{vitCount}/2</div>
-            <div className="bar"><i style={{ width: (vitCount / 2 * 100) + '%', ['--c']: 'var(--peach)' }} /></div>
+            <div className="v">{vitCount}/4</div>
+            <div className="bar"><i style={{ width: (vitCount / 4 * 100) + '%', ['--c']: 'var(--peach)' }} /></div>
           </div>
           <div className="status-card" style={{ background: 'var(--lemon)' }}>
             <div className="k">📈 操盘复盘</div>
@@ -196,14 +211,23 @@ export default function Today() {
         <div className="checkin" style={{ marginBottom: 14 }}>
           <div className="top">
             <span className="lbl">🌿 每日打卡</span>
-            <span className="prog">{checkDone}/{checkItems.length} 完成</span>
+            <span className="prog">{checkDone + vitCount}/{customMapped.length + vitCols.length} 完成</span>
           </div>
           <div className="grid">
-            {checkItems.map(it => (
+            {vitFields.map(v => (
+              <div key={v.key} className="item vit">
+                <div className="vbox">
+                  <div className={`box sm ${diet?.[v.am] ? 'on' : ''}`} onClick={() => toggleVit(v.am)}>{diet?.[v.am] ? '✓' : '早'}</div>
+                  <div className={`box sm ${diet?.[v.pm] ? 'on' : ''}`} onClick={() => toggleVit(v.pm)}>{diet?.[v.pm] ? '✓' : '晚'}</div>
+                </div>
+                <span>{v.label}</span>
+              </div>
+            ))}
+            {customMapped.map(it => (
               <div key={it.key} className="item" onClick={it.click}>
                 <div className={`box ${it.on ? 'on' : ''}`}>{it.on ? '✓' : ''}</div>
                 <span>{it.label}</span>
-                {it.custom && <span className="rm" onClick={(e) => { e.stopPropagation(); removeCustom(it.key) }}>×</span>}
+                <span className="rm" onClick={(e) => { e.stopPropagation(); removeCustom(it.key) }}>×</span>
               </div>
             ))}
             <div className="item add" onClick={() => setAdding(true)}>
@@ -211,7 +235,7 @@ export default function Today() {
               <span>添加</span>
             </div>
           </div>
-          <div className="note">维D / 肌醇 每日重置；自定义项长期保留</div>
+          <div className="note">维D / 肌醇 每日两次（早/晚），每日重置；自定义项长期保留</div>
           {adding && (
             <div className="add-form" onClick={(e) => e.stopPropagation()}>
               <input
@@ -224,15 +248,6 @@ export default function Today() {
               <button className="btn" onClick={addCustom}>加</button>
             </div>
           )}
-        </div>
-
-        {/* AI 今日建议 */}
-        <div className="ai-card" style={{ marginBottom: 14 }}>
-          <div className="bot">🤖</div>
-          <div className="txt">
-            <b>Lucy AI 今日建议</b><br />
-            {briefing?.summary || '早上好～点上方生成晨报，我就能结合美股与盘面给你今天的操盘与作息建议。'}
-          </div>
         </div>
 
         {/* 操盘提醒 */}

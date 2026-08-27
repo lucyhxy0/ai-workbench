@@ -57,6 +57,11 @@ export default function Inbox() {
     setItems(lst => lst.map(x => x.id === it.id ? { ...x, category: r.category } : x))
   }
 
+  function openItem(it) {
+    if (it.url) window.open(it.url, '_blank')
+    else alert('这条收藏没有可打开的链接')
+  }
+
   const list = cat === '全部' ? items : items.filter(i => i.category === cat)
 
   return (
@@ -64,7 +69,6 @@ export default function Inbox() {
       <TopBar title="收藏夹" right={<button className="btn ghost sm" disabled={syncing} onClick={sync}>{syncing ? '同步中' : '同步B站'}</button>} />
       <div className="page">
         <div className="greeting" style={{ marginBottom: 10 }}>
-          <div className="polaroid"><div className="ph">📥</div><div className="cap">My Inbox</div></div>
           <div>
             <div className="hi">AI Inbox,</div>
             <div className="name" style={{ fontSize: 30 }}>收藏夹</div>
@@ -79,16 +83,17 @@ export default function Inbox() {
         </div>
 
         {list.map(it => (
-          <div className="inbox-item" key={it.id}>
+          <div className="inbox-item" key={it.id} onClick={() => openItem(it)}>
             <div className="inbox-thumb" style={{ background: it.source === 'bilibili' ? '#FB7299' : '#161823' }}>{THUMB[it.source] || '🔗'}</div>
             <div className="inbox-main">
               <div className="t">{it.title}</div>
               <div className="meta">
                 <span className="badge">{it.source === 'bilibili' ? 'B站' : '抖音'}</span>
                 <span className={`cat-pill ${CAT_CLASS[it.category] || 'c-other'}`}>{it.category}</span>
-                <span className="tl-del" onClick={() => recat(it)}>重分类</span>
+                <span className="tl-del" onClick={(e) => { e.stopPropagation(); recat(it) }}>重分类</span>
               </div>
             </div>
+            <span className="open">↗</span>
           </div>
         ))}
         {list.length === 0 && <p className="empty">这类还没有收藏～</p>}

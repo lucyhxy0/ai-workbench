@@ -168,6 +168,13 @@ ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS inositol boolean DEFAULT false;
 ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS custom_checkins jsonb DEFAULT '[]'::jsonb;
 ALTER TABLE public.calendar_events ADD COLUMN IF NOT EXISTS event_time time;
 
+-- 2026-08-27 扩展：卡路里(jsonb) + 维D/肌醇 早/晚 双打卡
+ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS calories jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS vitamin_d_am boolean DEFAULT false;
+ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS vitamin_d_pm boolean DEFAULT false;
+ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS inositol_am boolean DEFAULT false;
+ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS inositol_pm boolean DEFAULT false;
+
 -- ============================================================
 -- 2026-08-25 新增表：自定义打卡项 + 收藏夹 Inbox
 -- ============================================================
