@@ -1,4 +1,6 @@
 // api/favorites.js — 收藏夹 Inbox：B站/抖音 收录 + 自动分类
+
+// redeploy-ping 2026-08-27T12:58:37.669Z
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'node:crypto'
 
