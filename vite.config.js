@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/icon.svg'],
       manifest: {
-        name: 'AI 工作台',
-        short_name: '工作台',
+        name: '花の手帳',
+        short_name: '花の手帳',
         description: '个人生活与交易管理助手',
         theme_color: '#10b981',
         background_color: '#0f172a',
