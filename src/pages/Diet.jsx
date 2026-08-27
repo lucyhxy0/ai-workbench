@@ -65,6 +65,7 @@ export default function Diet() {
 
   async function estimate() {
     if (!diet) return
+    if (estimating) return
     const anyFilled = MEALS.some(m => (diet[m.f] || '').trim())
     if (!anyFilled) { setMsg('先在各餐框写吃了啥，再点估算～'); setTimeout(() => setMsg(''), 2500); return }
     setEstimating(true)
@@ -74,7 +75,7 @@ export default function Diet() {
       const r = await api.caloriesEstimate(meals)
       for (const m of MEALS) {
         const v = r.calories?.[m.f]
-        if (v != null) await saveKcal(m.f, String(v))
+        if (v != null && (diet[m.f] || '').trim()) await saveKcal(m.f, String(v))
       }
       setMsg('AI 估算完成 ✓')
     } catch (e) {
@@ -99,19 +100,13 @@ export default function Diet() {
                 <span className="mt">{m.t}</span>
                 <div className="mactions">
                   {editing[m.f]
-                    ? <button className="btn" onClick={() => setEditing(e => ({ ...e, [m.f]: false }))}>确认</button>
+                    ? <button className="btn" onClick={() => { setEditing(e => ({ ...e, [m.f]: false })); if ((diet[m.f] || '').trim()) estimate() }}>确认</button>
                     : <button className="btn ghost" onClick={() => setEditing(e => ({ ...e, [m.f]: true }))}>修改</button>}
                 </div>
               </div>
               {editing[m.f]
                 ? <textarea value={diet[m.f] || ''} onChange={e => save(m.f, e.target.value)} placeholder="计划 / 实际吃了什么" />
                 : <div className={`locked ${(diet[m.f] || '') ? '' : 'empty'}`}>{diet[m.f] || '未填写'}</div>}
-              <div className="kcal-row">
-                <span className="kcal-ico">🔥</span>
-                <input className="kcal-input" type="number" min="0" inputMode="numeric" value={cal(m.f)} placeholder="0"
-                  onClick={e => e.stopPropagation()} onChange={e => saveKcal(m.f, e.target.value)} />
-                <span className="kcal-unit">千卡</span>
-              </div>
             </div>
           ))}
         </div>
@@ -142,7 +137,7 @@ export default function Diet() {
               </div>
             ))}
           </div>
-          <button className="btn ghost sm" style={{ marginTop: 10 }} disabled={estimating} onClick={estimate}>{estimating ? '估算中…' : '✨ AI 估算热量'}</button>
+          <button className="btn ghost sm" style={{ marginTop: 10 }} disabled={estimating} onClick={estimate}>{estimating ? '自动计算中…' : '✨ 自动计算全部卡路里'}</button>
           {msg && <p className="muted center" style={{ fontSize: 13 }}>{msg}</p>}
         </div>
 
