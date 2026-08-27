@@ -80,6 +80,37 @@ async function classify(title = '') {
   }
 }
 
+// 取 B站 bili_ticket（2024 起 resource/list 等敏感接口要求，否则 -400）。
+// 服务端 IP 若被 B站风控则可能拿不到，这里 best-effort：拿不到就返回 null，调用方照常发请求。
+async function getBiliTicket(H) {
+  try {
+    const spi = await fetchTimeout('https://api.bilibili.com/x/frontend/finger/spi', { headers: H })
+      .then(r => r.json()).catch(() => null)
+    const buvid3 = spi?.data?.b_3 || spi?.data?.buvid3
+    const buvid4 = spi?.data?.b_4 || spi?.data?.buvid4
+    if (!buvid4) return { ticket: null, buvid3, buvid4 }
+    const payload = { '3064': 1, '39c8': '', '5062': buvid4, '7992': 1, 'C9E5': '', 'BFB4': '', '34F1': '', '8C51': '', '7923': 1, '7AE2': 1, 'E4B9': '', '52D8': '', '7DC3': 1, '6918': 1, 'E6D2': 1, 'E4C4': 1, 'E6D3': 1, 'B8CE': 1, '2D53': 1, '9F18': 1 }
+    const b64 = Buffer.from(JSON.stringify(payload)).toString('base64')
+    const g = await fetchTimeout('https://api.bilibili.com/x/internal/gaia/gateway?path=/x/internal/gaia/ticket/gen&payload=' + encodeURIComponent(b64), { headers: H })
+      .then(r => r.json()).catch(() => null)
+    return { ticket: g?.data?.ticket || null, buvid3, buvid4 }
+  } catch {
+    return { ticket: null, buvid3: null, buvid4: null }
+  }
+}
+
+// 公开视频信息（无需登录，用于粘贴链接时取标题）
+async function biliViewTitle(bvid) {
+  try {
+    const H = { Referer: 'https://www.bilibili.com', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+    const r = await fetchTimeout('https://api.bilibili.com/x/web-interface/view?bvid=' + bvid, { headers: H })
+      .then(r => r.json()).catch(() => null)
+    return r?.data?.title || null
+  } catch {
+    return null
+  }
+}
+
 async function syncBilibili(sb, userId) {
   const sess = process.env.BILIBILI_SESSDATA
   if (!sess) return { synced: 0, note: '未配置 BILIBILI_SESSDATA（去 Vercel 环境变量补上，并勾选 Production）' }
@@ -111,6 +142,10 @@ async function syncBilibili(sb, userId) {
   const list = folders?.data?.list || []
   if (list.length === 0) return { synced: 0, note: `未读到收藏夹——请确认两点：①B站收藏夹已设为「公开」（私密收藏夹 API 读不到，可先在 B站 App 里把收藏夹可见性改为公开）；②Vercel 环境变量 BILIBILI_SESSDATA 是最新复制的值。当前登录账号 mid=${mid}` }
 
+  // 取 bili_ticket（B站 2024 起 resource/list 要求，拿不到也能继续，只是视频列表可能 -400）
+  const tk = await getBiliTicket(H)
+  const H2 = tk.buvid3 ? { ...H, Cookie: `${H.Cookie};buvid3=${tk.buvid3};buvid4=${tk.buvid4}` } : H
+
   // 去重：已收录的 url 跳过，避免重复刷
   const { data: ex } = await sb.from('favorites').select('url').eq('user_id', userId)
   const have = new Set((ex || []).map(e => e.url))
@@ -121,8 +156,9 @@ async function syncBilibili(sb, userId) {
   for (const f of list) {
     if (synced >= CAP) break
     // resource/list 必须带 keyword/order/type/web_location 这几个参数，否则 B站返回 -400
-    const rlParams = wbiSign({ media_id: f.id, pn: 1, ps: 50, keyword: '', order: 'mtime', type: 0, web_location: '333.1007' }, mixin)
-    const res = await fetchTimeout('https://api.bilibili.com/x/v3/fav/resource/list?' + new URLSearchParams(rlParams), { headers: H })
+    const rlBase = { media_id: f.id, pn: 1, ps: 50, keyword: '', order: 'mtime', type: 0, web_location: '333.1007' }
+    const rlParams = tk.ticket ? wbiSign({ ...rlBase, bili_ticket: tk.ticket }, mixin) : wbiSign(rlBase, mixin)
+    const res = await fetchTimeout('https://api.bilibili.com/x/v3/fav/resource/list?' + new URLSearchParams(rlParams), { headers: H2 })
       .then(r => r.json()).catch(() => null)
     if (!res || res.code !== 0) continue
     const medias = res?.data?.medias || []
@@ -142,7 +178,7 @@ async function syncBilibili(sb, userId) {
   let note
   if (synced > 0) note = 'B站同步完成'
   else if (foldersWithVideos > 0) note = '已读收藏夹，但 0 条新增（可能都已收录过）'
-  else note = '收藏夹已读取，但视频列表拉取失败（B站 resource/list 异常，可能 SESSDATA 已失效或缺少参数）'
+  else note = '收藏夹已读取，但视频列表拉取失败（B站 resource/list 被风控拦截，服务端拿不到 bili_ticket）。可改用收藏页「粘贴 B站视频链接」方式收录，或等令牌刷新后重试。'
   return { synced, note }
 }
 
@@ -162,10 +198,21 @@ export default async function handler(req, res) {
   const body = req.body || {}
   try {
     if (body.action === 'add') {
-      const cat = await classify(body.title || '')
+      let source = body.source || 'douyin'
+      let title = body.title || ''
+      const url = body.url || ''
+      // 粘贴的链接若是 B站视频，自动识别来源并尝试取标题
+      const bvm = url.match(/bilibili\.com\/video\/(BV[\w]+)/)
+      if (bvm) {
+        source = 'bilibili'
+        const t = await biliViewTitle(bvm[1])
+        if (t) title = t
+        else if (!title) title = 'B站视频 ' + bvm[1]
+      }
+      const cat = await classify(title)
       const { data, error } = await sb.from('favorites').insert({
-        user_id: user.id, source: body.source || 'douyin',
-        title: body.title || '未命名', url: body.url || '', category: cat
+        user_id: user.id, source,
+        title: title || '未命名', url, category: cat
       }).select().single()
       if (error) return res.status(500).json({ error: error.message })
       return res.json({ item: data, category: cat })
