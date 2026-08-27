@@ -28,17 +28,39 @@ export default function Inbox() {
   useEffect(() => { load() }, [])
 
   async function add() {
-    const t = title.trim() || url.trim()
-    if (!t) return
+    const raw = url.trim()
+    const titleVal = title.trim()
+    if (!raw && !titleVal) return
+    // 从文本框里提取所有 http(s) 链接（支持一次粘贴多个，B站/抖音/短链都行）
+    const urls = (raw + ' ' + titleVal).match(/https?:\/\/[^\s]+/g) || []
+    const unique = [...new Set(urls)]
     setBusy(true)
     try {
-      const source = url.includes('bilibili') ? 'bilibili' : 'douyin'
-      const r = await api.favoritesAdd({ title: t, url: url.trim(), source })
-      if (r.item) setItems(it => [r.item, ...it])
-      setUrl(''); setTitle(''); setMsg('已收录 → ' + r.category)
+      if (unique.length > 0) {
+        const added = []
+        let done = 0
+        for (const u of unique) {
+          const source = /bilibili|b23\.tv/i.test(u) ? 'bilibili' : 'douyin'
+          const r = await api.favoritesAdd({ title: '', url: u, source })
+          if (r.item) added.push(r.item)
+          done++
+          setMsg(`收录中 ${done}/${unique.length}…`)
+        }
+        if (added.length) setItems(it => [...added, ...it])
+        setUrl(''); setTitle('')
+        setMsg(added.length === unique.length
+          ? `已收录 ${added.length} 条`
+          : `已收录 ${added.length}/${unique.length} 条（部分失败）`)
+      } else {
+        // 没有链接：当作纯标题手动录入
+        const r = await api.favoritesAdd({ title: titleVal, url: '', source: 'douyin' })
+        if (r.item) setItems(it => [r.item, ...it])
+        setUrl(''); setTitle('')
+        setMsg('已收录 → ' + r.category)
+      }
     } catch (e) {
       setMsg('失败：' + e.message)
-    } finally { setBusy(false); setTimeout(() => setMsg(''), 2500) }
+    } finally { setBusy(false); setTimeout(() => setMsg(''), 3000) }
   }
 
   async function sync() {
@@ -100,11 +122,12 @@ export default function Inbox() {
 
         <div className="card tint" style={{ marginTop: 12 }}>
           <h3>➕ 粘贴链接收录</h3>
-          <label>链接（抖音 / B站 分享链接）</label>
-          <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." />
-          <label>标题（可选，留空用链接代替）</label>
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="视频标题" />
+          <label>链接（B站 / 抖音 分享链接，可一次粘贴多个，每行一个）</label>
+          <input value={url} onChange={e => setUrl(e.target.value)} placeholder="粘贴 B站视频链接，或从收藏夹一次复制多个链接" />
+          <label>标题（可选，留空自动识别）</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="视频标题（可留空）" />
           <button className="btn" disabled={busy} style={{ marginTop: 10 }} onClick={add}>{busy ? '收录中…' : '收录'}</button>
+          <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>提示：B站自动同步暂时被平台风控拦截，用「粘贴链接」收录最稳，支持一次粘贴多个视频链接（含手机分享的 b23.tv 短链）。</p>
           {msg && <p className="muted center" style={{ fontSize: 13 }}>{msg}</p>}
         </div>
       </div>

@@ -111,6 +111,17 @@ async function biliViewTitle(bvid) {
   }
 }
 
+// 处理 B站 b23.tv 短链：跟随重定向拿到真实视频 URL（手机 B站 App 分享复制出来的就是这种短链）
+async function resolveB23(rawUrl) {
+  if (!/b23\.tv/i.test(rawUrl)) return rawUrl
+  const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'
+  try {
+    const r = await fetchTimeout(rawUrl, { redirect: 'follow', headers: { 'User-Agent': UA } })
+    if (r.url && /bilibili\.com\/video\//i.test(r.url)) return r.url
+  } catch { /* 解析失败就返回原值，交给下面正则兜底 */ }
+  return rawUrl
+}
+
 async function syncBilibili(sb, userId) {
   const sess = process.env.BILIBILI_SESSDATA
   if (!sess) return { synced: 0, note: '未配置 BILIBILI_SESSDATA（去 Vercel 环境变量补上，并勾选 Production）' }
@@ -198,21 +209,24 @@ export default async function handler(req, res) {
   const body = req.body || {}
   try {
     if (body.action === 'add') {
-      let source = body.source || 'douyin'
       let title = body.title || ''
-      const url = body.url || ''
-      // 粘贴的链接若是 B站视频，自动识别来源并尝试取标题
-      const bvm = url.match(/bilibili\.com\/video\/(BV[\w]+)/)
+      const rawUrl = body.url || ''
+      const realUrl = await resolveB23(rawUrl)
+      // 粘贴的链接若是 B站视频（含 b23.tv 短链），自动识别来源并尝试取标题
+      let source = /bilibili|b23\.tv/i.test(realUrl) ? 'bilibili' : (body.source || 'douyin')
+      const bvm = realUrl.match(/bilibili\.com\/video\/(BV[\w]+)/)
       if (bvm) {
         source = 'bilibili'
         const t = await biliViewTitle(bvm[1])
         if (t) title = t
         else if (!title) title = 'B站视频 ' + bvm[1]
+      } else if (/bilibili|b23/i.test(realUrl) && !title) {
+        title = 'B站视频'
       }
       const cat = await classify(title)
       const { data, error } = await sb.from('favorites').insert({
         user_id: user.id, source,
-        title: title || '未命名', url, category: cat
+        title: title || '未命名', url: realUrl, category: cat
       }).select().single()
       if (error) return res.status(500).json({ error: error.message })
       return res.json({ item: data, category: cat })
