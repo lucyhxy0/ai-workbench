@@ -109,7 +109,7 @@ async function syncBilibili(sb, userId) {
     return { synced: 0, note: `收藏夹接口异常 code=${folders?.code ?? 'null'}（SESSDATA 可能失效，请重新复制）` }
   }
   const list = folders?.data?.list || []
-  if (list.length === 0) return { synced: 0, note: '没有收藏夹（或收藏夹为空）' }
+  if (list.length === 0) return { synced: 0, note: `未读到收藏夹——请确认两点：①B站收藏夹已设为「公开」（私密收藏夹 API 读不到，可先在 B站 App 里把收藏夹可见性改为公开）；②Vercel 环境变量 BILIBILI_SESSDATA 是最新复制的值。当前登录账号 mid=${mid}` }
 
   // 去重：已收录的 url 跳过，避免重复刷
   const { data: ex } = await sb.from('favorites').select('url').eq('user_id', userId)
