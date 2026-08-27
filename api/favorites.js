@@ -1,6 +1,4 @@
 // api/favorites.js — 收藏夹 Inbox：B站/抖音 收录 + 自动分类
-
-// redeploy-ping 2026-08-27T12:58:37.669Z
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'node:crypto'
 
@@ -118,14 +116,18 @@ async function syncBilibili(sb, userId) {
   const have = new Set((ex || []).map(e => e.url))
 
   let synced = 0
+  let foldersWithVideos = 0
   const CAP = 120 // 单次同步数量上限，避免超时
   for (const f of list) {
     if (synced >= CAP) break
-    const rlParams = wbiSign({ media_id: f.id, pn: 1, ps: 50 }, mixin)
+    // resource/list 必须带 keyword/order/type/web_location 这几个参数，否则 B站返回 -400
+    const rlParams = wbiSign({ media_id: f.id, pn: 1, ps: 50, keyword: '', order: 'mtime', type: 0, web_location: '333.1007' }, mixin)
     const res = await fetchTimeout('https://api.bilibili.com/x/v3/fav/resource/list?' + new URLSearchParams(rlParams), { headers: H })
       .then(r => r.json()).catch(() => null)
     if (!res || res.code !== 0) continue
-    for (const it of res?.data?.medias || []) {
+    const medias = res?.data?.medias || []
+    if (medias.length) foldersWithVideos++
+    for (const it of medias) {
       if (synced >= CAP) break
       const url = `https://www.bilibili.com/video/${it.bvid}`
       if (have.has(url)) continue
@@ -137,7 +139,11 @@ async function syncBilibili(sb, userId) {
       if (!error) { synced++; have.add(url) }
     }
   }
-  return { synced, note: synced > 0 ? 'B站同步完成' : '已读收藏夹，但 0 条新增（可能都已收录过）' }
+  let note
+  if (synced > 0) note = 'B站同步完成'
+  else if (foldersWithVideos > 0) note = '已读收藏夹，但 0 条新增（可能都已收录过）'
+  else note = '收藏夹已读取，但视频列表拉取失败（B站 resource/list 异常，可能 SESSDATA 已失效或缺少参数）'
+  return { synced, note }
 }
 
 export default async function handler(req, res) {
