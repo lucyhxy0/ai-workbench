@@ -52,15 +52,6 @@ export default function Diet() {
   }
 
   const cal = f => (diet?.calories?.[f]) ?? ''
-  async function saveKcal(field, val) {
-    if (!diet) return
-    const n = val === '' ? null : Number(val)
-    const cur = (diet.calories && typeof diet.calories === 'object') ? diet.calories : {}
-    const next = { ...cur, [field]: n }
-    setDiet({ ...diet, calories: next })
-    await supabase.from('diet').update({ calories: next }).eq('id', diet.id)
-  }
-
   const totalKcal = MEALS.reduce((s, m) => s + (Number(cal(m.f)) || 0), 0)
 
   async function estimate() {
@@ -73,10 +64,14 @@ export default function Diet() {
       const meals = {}
       for (const m of MEALS) meals[m.f] = diet[m.f] || ''
       const r = await api.caloriesEstimate(meals)
+      // 一次性累积所有餐，只写一次，避免循环里后者覆盖前者
+      const next = (diet.calories && typeof diet.calories === 'object') ? { ...diet.calories } : {}
       for (const m of MEALS) {
         const v = r.calories?.[m.f]
-        if (v != null && (diet[m.f] || '').trim()) await saveKcal(m.f, String(v))
+        if (v != null && (diet[m.f] || '').trim()) next[m.f] = Number(v)
       }
+      setDiet({ ...diet, calories: next })
+      await supabase.from('diet').update({ calories: next }).eq('id', diet.id)
       setMsg('AI 估算完成 ✓')
     } catch (e) {
       setMsg('估算失败：' + e.message)
