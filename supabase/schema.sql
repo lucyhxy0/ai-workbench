@@ -175,6 +175,11 @@ ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS vitamin_d_pm boolean DEFAULT fa
 ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS inositol_am boolean DEFAULT false;
 ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS inositol_pm boolean DEFAULT false;
 
+-- 2026-08-27 扩展：饮食备注 + 身体状况(体重 / 体脂率)
+ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS note text DEFAULT '';
+ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS weight numeric;
+ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS body_fat numeric;
+
 -- ============================================================
 -- 2026-08-25 新增表：自定义打卡项 + 收藏夹 Inbox
 -- ============================================================
