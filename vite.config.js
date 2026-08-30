@@ -8,6 +8,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // 关键：旧 Service Worker 自毁，且不再预缓存任何资源 → 手机打开永远拉最新版
+      selfDestroying: true,
       version: Date.now().toString(),
       includeAssets: ['favicon.png', 'icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
@@ -26,7 +28,8 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // 不预缓存任何资源，避免手机被旧缓存卡死
+        globPatterns: [],
         cleanupOutdatedCaches: true,
         navigateFallback: '/index.html',
         runtimeCaching: [
