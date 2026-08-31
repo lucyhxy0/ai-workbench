@@ -214,4 +214,23 @@ DROP POLICY IF EXISTS "own rows" ON public.favorites;
 CREATE POLICY "own rows" ON public.favorites
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+-- ============================================================
+-- 2026-08-31 新增表：宠物记录（护理 / 健康 / 体重）
+-- 幂等，可重复执行
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.pet_logs (
+  id        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id   uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  date      date NOT NULL DEFAULT CURRENT_DATE,
+  category  text NOT NULL DEFAULT '其他',   -- 化毛膏/去毛/剪指甲/外驱/换猫砂/内驱/喂食/体重/洗澡/就医/其他
+  note      text DEFAULT '',
+  weight    numeric,                          -- 体重 kg（可选）
+  created_at timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_pet_user_date ON public.pet_logs(user_id, date);
+ALTER TABLE public.pet_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own rows" ON public.pet_logs;
+CREATE POLICY "own rows" ON public.pet_logs
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
 
