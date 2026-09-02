@@ -5,6 +5,24 @@ import TopBar from '../components/TopBar.jsx'
 import { todayStr, prettyDate } from '../lib/date.js'
 import { api } from '../lib/api.js'
 
+// 压缩图片为 JPEG base64（限制最大边，减小存储体积）
+function compressImage(file, max = 480, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.width, img.height))
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      URL.revokeObjectURL(img.src)
+      resolve(canvas.toDataURL('image/jpeg', quality))
+    }
+    img.onerror = () => reject(new Error('图片解码失败'))
+    img.src = URL.createObjectURL(file)
+  })
+}
+
 export default function Today() {
   const nav = useNavigate()
   const today = todayStr()
@@ -38,7 +56,7 @@ export default function Today() {
     setBriefing(b)
     setEvents(ev || [])
     setDueTasks(mt || [])
-    setPetPhoto(localStorage.getItem('lucy_pet_' + uid) || '')
+    await loadPhoto(uid)
 
     const { data: ci } = await supabase.from('checkin_items').select('*').eq('user_id', uid).order('created_at')
     setCustomItems(ci || [])
@@ -47,6 +65,15 @@ export default function Today() {
     else { const { data: nd } = await supabase.from('diet').insert({ user_id: uid, date: today }).select().single(); setDiet(nd) }
     setTrading(tr)
     setLoading(false)
+  }
+
+  async function loadPhoto(uid) {
+    const local = localStorage.getItem('lucy_pet_' + uid) || ''
+    if (local) setPetPhoto(local)
+    try {
+      const { data } = await supabase.from('pet_photo').select('photo').eq('user_id', uid).maybeSingle()
+      if (data?.photo) { setPetPhoto(data.photo); localStorage.setItem('lucy_pet_' + uid, data.photo) }
+    } catch { /* 忽略，localStorage 兜底 */ }
   }
 
   useEffect(() => { load() }, [])
@@ -63,13 +90,17 @@ export default function Today() {
     const f = e.target.files?.[0]
     if (!f) return
     const { data: { user } } = await supabase.auth.getUser()
-    const r = new FileReader()
-    r.onload = () => {
-      const d = r.result
-      setPetPhoto(d)
-      if (user) localStorage.setItem('lucy_pet_' + user.id, d)
+    try {
+      const b64 = await compressImage(f)
+      setPetPhoto(b64)
+      if (user) {
+        localStorage.setItem('lucy_pet_' + user.id, b64)
+        const { error } = await supabase.from('pet_photo').upsert({ user_id: user.id, photo: b64, updated_at: new Date().toISOString() })
+        if (error) console.warn('照片云同步失败（本地已保存）：', error.message)
+      }
+    } catch (err) {
+      alert('图片读取失败：' + err.message)
     }
-    r.readAsDataURL(f)
   }
 
   // 自定义打卡项（用户级，长期保留，不随日期重置）

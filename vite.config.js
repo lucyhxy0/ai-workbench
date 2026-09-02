@@ -8,9 +8,6 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      // 关键：旧 Service Worker 自毁，且不再预缓存任何资源 → 手机打开永远拉最新版
-      selfDestroying: true,
-      version: Date.now().toString(),
       includeAssets: ['favicon.png', 'icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
         name: '花の手帳',
@@ -28,8 +25,8 @@ export default defineConfig({
         ]
       },
       workbox: {
-        // 不预缓存任何资源，避免手机被旧缓存卡死
-        globPatterns: [],
+        // 预缓存带 hash 的静态资源 → 手机秒开；新版本 hash 变则自动更新
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         cleanupOutdatedCaches: true,
         navigateFallback: '/index.html',
         runtimeCaching: [

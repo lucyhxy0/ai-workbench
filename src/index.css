@@ -110,6 +110,15 @@ a { color: var(--primary-deep); }
 .theme-today  { --accent: var(--peach); }
 .card.tint { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 14%, var(--paper)), var(--paper)); }
 
+/* 宏观手册参考表 */
+.tbl { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 8px; }
+.tbl table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 360px; }
+.tbl td { border: 1px solid var(--line); padding: 7px 9px; vertical-align: top; color: var(--ink); }
+.tbl tr:nth-child(odd) td { background: color-mix(in srgb, var(--accent) 8%, var(--paper)); }
+details.card.tint summary { list-style: none; }
+details.card.tint summary::-webkit-details-marker { display: none; }
+details.card.tint[open] summary { margin-bottom: 4px; }
+
 /* ---------- 按钮 ---------- */
 .btn {
   background: var(--primary); color: #fff; border: none; border-radius: var(--radius);
@@ -321,3 +330,4 @@ label { font-size: 13px; color: var(--ink-dim); font-weight: 600; margin-top: 8p
 .tag.red { background: #FBD9D2; color: #8a4234; border-color: #f0b3a8; }
 .tag.amber { background: #FDF3B8; color: #6b5a1f; border-color: #ecd97f; }
 .tag.green { background: #D6F2E6; color: #2c5b49; border-color: #a9ddca; }
+.done-date { display: block; font-size: 11px; color: var(--ink-dim); font-weight: 400; margin-top: 2px; }

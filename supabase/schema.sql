@@ -237,4 +237,62 @@ CREATE POLICY "own rows" ON public.pet_logs
 -- 2026-08-31 扩展：宠物重大支出金额字段（幂等，可重复执行）
 ALTER TABLE public.pet_logs ADD COLUMN IF NOT EXISTS amount numeric;
 
+-- ============================================================
+-- 2026-08-31 新增表：宏观速读（每日自测 + 事件日志）
+-- 幂等，可重复执行
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.macro_daily (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  date        date NOT NULL DEFAULT CURRENT_DATE,
+  risk_on     text DEFAULT '',            -- 'on' / 'off' / '未定'
+  driver      text DEFAULT '',            -- 驱动类型（政策/增长/地缘…）
+  flow        text DEFAULT '',            -- 资金流向
+  conclusion  text DEFAULT '',            -- 一句盘面结论
+  checklist   jsonb DEFAULT '{}'::jsonb,  -- 每日清单打卡 {thermo,headlines,selftest,eventlog,weekend}
+  created_at  timestamptz DEFAULT now(),
+  updated_at  timestamptz DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_macro_daily_user_date ON public.macro_daily(user_id, date);
+
+CREATE TABLE IF NOT EXISTS public.macro_events (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  date        date NOT NULL DEFAULT CURRENT_DATE,
+  event       text DEFAULT '',            -- 触发事件
+  reaction    text DEFAULT '',            -- 市场反应
+  assets      text DEFAULT '',            -- 受影响资产
+  verify      text DEFAULT '',            -- 一周后验证
+  created_at  timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_macro_event_user_date ON public.macro_events(user_id, date);
+
+ALTER TABLE public.macro_daily ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own rows" ON public.macro_daily;
+CREATE POLICY "own rows" ON public.macro_daily
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+ALTER TABLE public.macro_events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own rows" ON public.macro_events;
+CREATE POLICY "own rows" ON public.macro_events
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP TRIGGER IF EXISTS trg_macro_daily_updated ON public.macro_daily;
+CREATE TRIGGER trg_macro_daily_updated BEFORE UPDATE ON public.macro_daily
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated();
+
+-- ============================================================
+-- 2026-09-02 新增表：今日页拍立得照片（持久化，替代 localStorage）
+-- 幂等，可重复执行
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.pet_photo (
+  user_id    uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  photo      text,                    -- 压缩后的 JPEG base64
+  updated_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.pet_photo ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own rows" ON public.pet_photo;
+CREATE POLICY "own rows" ON public.pet_photo
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
 

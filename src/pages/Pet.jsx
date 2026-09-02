@@ -33,6 +33,7 @@ function money(n) {
 export default function Pet() {
   const today = todayStr()
   const [logs, setLogs] = useState([])
+  const [latestWeight, setLatestWeight] = useState(null)
   const [msg, setMsg] = useState('')
   const [form, setForm] = useState({ date: today, category: '化毛膏', note: '', weight: '' })
   const [wInput, setWInput] = useState('')
@@ -44,6 +45,10 @@ export default function Pet() {
     if (!user) return
     const { data } = await supabase.from('pet_logs').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(200)
     setLogs(data || [])
+    const { data: w } = await supabase.from('pet_logs')
+      .select('date, weight').eq('user_id', user.id).eq('category', '体重')
+      .not('weight', 'is', null).order('date', { ascending: false }).order('created_at', { ascending: false }).limit(1).maybeSingle()
+    setLatestWeight(w || null)
   }
   useEffect(() => { load() }, [])
 
@@ -55,19 +60,15 @@ export default function Pet() {
 
   function statusOf(t) {
     const last = lastByCat[t.key]
-    if (!last) return { cls: 'red', text: '还没做过' }
+    if (!last) return { cls: 'red', text: '还没做过', done: false }
     const next = addDays(last, t.period)
     const left = daysBetween(today, next)
-    if (left <= 0) return { cls: 'red', text: `逾期 ${-left} 天` }
-    if (left <= 7) return { cls: 'amber', text: `剩 ${left} 天` }
-    return { cls: 'green', text: `剩 ${left} 天` }
+    if (left <= 0) return { cls: 'red', text: `逾期 ${-left} 天`, done: false, last }
+    if (left <= 7) return { cls: 'amber', text: `剩 ${left} 天`, done: true, last }
+    return { cls: 'green', text: `剩 ${left} 天`, done: true, last }
   }
 
-  // 体重：取最近一条有体重的记录
-  const weightLogs = logs
-    .filter(l => l.weight != null && l.weight !== '')
-    .sort((a, b) => b.date.localeCompare(a.date))
-  const latestWeight = weightLogs[0]
+  // 最新体重由 load() 单独查询（latestWeight state），不依赖全局 logs 排序
 
   // 重大支出
   const expenses = logs
@@ -84,8 +85,12 @@ export default function Pet() {
 
   async function markDone(t) {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    await supabase.from('pet_logs').insert({ user_id: user.id, date: today, category: t.key, note: '完成' })
+    if (!user) { flash('请先登录'); return }
+    const rec = { user_id: user.id, date: today, category: t.key, note: '完成' }
+    const { error } = await supabase.from('pet_logs').insert(rec)
+    if (error) { flash('记录失败：' + error.message); return }
+    // 乐观更新本地，立即反馈，不依赖整表 reload
+    setLogs(ls => [{ id: 'tmp-' + Date.now(), ...rec }, ...ls])
     flash(`${t.key} 已记录 ✓ 下次约 ${addDays(today, t.period)}`)
     await load()
   }
@@ -188,9 +193,12 @@ export default function Pet() {
             return (
               <div className="check-row" key={t.key}>
                 <span style={{ fontSize: 18 }}>{t.ic}</span>
-                <span className="label">{t.key}</span>
+                <span className="label">
+                  {t.key}
+                  {s.done && <span className="done-date">完成于 {s.last}</span>}
+                </span>
                 <span className={`tag ${s.cls}`}>{s.text}</span>
-                <button className="btn ghost sm" onClick={() => markDone(t)}>完成</button>
+                <div className={`checkbox ${s.done ? 'on' : ''}`} onClick={() => markDone(t)} title="点勾完成">{s.done ? '✓' : ''}</div>
               </div>
             )
           })}
@@ -201,9 +209,12 @@ export default function Pet() {
             return (
               <div className="check-row" key={t.key}>
                 <span style={{ fontSize: 18 }}>{t.ic}</span>
-                <span className="label">{t.key}</span>
+                <span className="label">
+                  {t.key}
+                  {s.done && <span className="done-date">完成于 {s.last}</span>}
+                </span>
                 <span className={`tag ${s.cls}`}>{s.text}</span>
-                <button className="btn ghost sm" onClick={() => markDone(t)}>完成</button>
+                <div className={`checkbox ${s.done ? 'on' : ''}`} onClick={() => markDone(t)} title="点勾完成">{s.done ? '✓' : ''}</div>
               </div>
             )
           })}
