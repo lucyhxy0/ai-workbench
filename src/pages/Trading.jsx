@@ -31,18 +31,6 @@ const CHECK_LABELS = {
   weekend: '周末回看本周日志，找模式'
 }
 
-// ---------- 8 温度计（§一） ----------
-const THERMO = [
-  { k: 'vix', n: 'VIX 恐慌指数', en: 'VIX', h: '>20 紧张，>30 恐慌' },
-  { k: 'dxy', n: '美元指数', en: 'DXY', h: '强=资金回流美国=新兴市场承压' },
-  { k: 'us10y', n: '美十债收益率', en: 'US 10Y', h: '升=紧缩/增长强；降=降息预期' },
-  { k: 'usdjpy', n: '美元兑日元', en: 'USDJPY', h: '日元急升=套息平仓信号' },
-  { k: 'xau', n: '黄金', en: 'XAU', h: '避险与真实利率的镜子' },
-  { k: 'wti', n: '原油', en: 'WTI', h: '地缘冲突/需求预期体温计' },
-  { k: 'us', n: '美股三大指数', en: 'S&P/Nasdaq/Dow', h: '全球风险资产定价锚' },
-  { k: 'asia', n: '亚太 日经/恒生/A50', en: 'Nikkei/HSI/CSI300', h: '你开盘前已发生的故事' }
-]
-
 // ---------- 跨资产验证（§8.2） ----------
 const CROSS = [
   { k: 'usd_up', l: '美元↑' },
@@ -130,21 +118,9 @@ export default function Trading() {
     saveMacro('checklist', { ...cur, [key]: !cur[key] })
   }
 
-  function setThermo(k, v) {
-    const cur = (macro.thermo_readings && typeof macro.thermo_readings === 'object') ? macro.thermo_readings : {}
-    saveMacro('thermo_readings', { ...cur, [k]: v })
-  }
   function setCross(k) {
     const cur = (macro.cross_signals && typeof macro.cross_signals === 'object') ? macro.cross_signals : {}
     saveMacro('cross_signals', { ...cur, [k]: !cur[k] })
-  }
-  function verdict() {
-    const tr = macro.thermo_readings || {}
-    let off = 0, on = 0
-    Object.values(tr).forEach(v => { if (v === 'off') off++; else if (v === 'on') on++ })
-    if (off >= on + 2) return { cls: 'off', big: '避险 · risk-off', sub: `四大件中 ${off} 项指向避险、${on} 项指向偏好 → 今天该防御` }
-    if (on >= off + 2) return { cls: 'on', big: '风险偏好 · risk-on', sub: `${on} 项指向偏好、${off} 项指向避险 → 可适度积极` }
-    return { cls: 'mid', big: '中性 / 分化', sub: `避险 ${off} · 偏好 ${on} → 信号不清晰，等确认` }
   }
 
   async function addEvent() {
@@ -199,7 +175,6 @@ export default function Trading() {
 
   if (!rec || !macro) return <div className="empty">加载中…</div>
 
-  const v = verdict()
   const crossCount = CROSS.filter(c => macro.cross_signals && macro.cross_signals[c.k]).length
 
   return (
@@ -214,33 +189,9 @@ export default function Trading() {
           <p className="sub" style={{ marginTop: 4 }}>用法：盘前扫「8 温度计」→ 用「事件→资产表」定位驱动 → 跑「3 问自测」。</p>
         </div>
 
-        {/* ===== 今日盘面定性器（§一 + §三） ===== */}
-        <div className="card tint">
-          <h3>🧭 今日盘面定性器</h3>
-          <p className="sub" style={{ marginTop: -4 }}>对 8 个温度计各判「避险 / 中性 / 偏好」，自动算出今天的风险坐标。</p>
-          {THERMO.map(t => (
-            <div className="thermo-row" key={t.k}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span className="nm">{t.n} <span className="en">{t.en}</span></span>
-                <span className="en">{t.h}</span>
-              </div>
-              <div className="seg">
-                <button className={(macro.thermo_readings?.[t.k] === 'off') ? 'off' : ''} onClick={() => setThermo(t.k, 'off')}>避险</button>
-                <button className={(macro.thermo_readings?.[t.k] === 'flat') ? 'flat' : ''} onClick={() => setThermo(t.k, 'flat')}>中性</button>
-                <button className={(macro.thermo_readings?.[t.k] === 'on') ? 'on' : ''} onClick={() => setThermo(t.k, 'on')}>偏好</button>
-              </div>
-            </div>
-          ))}
-          <div className={`verdict ${v.cls}`}>
-            <span className="big">{v.big}</span>
-            <span className="sub">{v.sub}</span>
-          </div>
-          <button className="btn ghost sm" onClick={() => saveMacro('risk_on', v.cls === 'off' ? 'off' : v.cls === 'on' ? 'on' : '未定')}>→ 把结果填入下方自测</button>
-        </div>
-
         {/* ===== 3 问自测（§三） ===== */}
         <div className="card tint">
-          <h3>🧭 三、3 问自测（每天）</h3>
+          <h3>🧭 3 问自测</h3>
           <label>1. 今天 risk-on 还是 off？</label>
           <select value={macro.risk_on} onChange={e => saveMacro('risk_on', e.target.value)}>
             <option value="">— 选一个 —</option>
@@ -264,7 +215,7 @@ export default function Trading() {
 
         {/* §8.1 预期框架 */}
         <div className="card tint">
-          <h3>📐 8.1 预期框架</h3>
+          <h3>📐 预期框架</h3>
           <p className="sub" style={{ marginTop: -4 }}>市场交易的不是数字，是「惊喜」（实际 vs 一致预期）。数据公布前先写预期。</p>
           <label>数据名称</label>
           <input value={expDraft.name} onChange={e => setExpDraft({ ...expDraft, name: e.target.value })} placeholder="如：美国非农" />
@@ -289,7 +240,7 @@ export default function Trading() {
 
         {/* §8.2 跨资产交叉验证 */}
         <div className="card tint">
-          <h3>🔗 8.2 跨资产交叉验证</h3>
+          <h3>🔗 跨资产交叉验证</h3>
           <p className="sub" style={{ marginTop: -4 }}>单资产异动多是噪声；真宏观行情一定跨资产共振。≥3 项同向才算信号。</p>
           <div style={{ marginTop: 6 }}>
             {CROSS.map(c => (
@@ -297,14 +248,14 @@ export default function Trading() {
             ))}
           </div>
           <p className="sub" style={{ marginTop: 8 }}>
-            今日同向信号：<b>{crossCount}/5</b> ｛crossCount >= 3 ? '→ 真信号，可信任' : '→ 还不到，先观望'｝
+            今日同向信号：<b>{crossCount}/5</b> {crossCount >= 3 ? '→ 真信号，可信任' : '→ 还不到，先观望'}
           </p>
           <p className="sub">进阶：盯「相关性破裂」——黄金与美元同涨、股债同跌、日元升但日股不跌，都是 regime 切换前兆。</p>
         </div>
 
         {/* §8.6 写 + 复盘 */}
         <div className="card tint">
-          <h3>✍️ 8.6 写 + 复盘（闭环）</h3>
+          <h3>✍️ 写 + 复盘（闭环）</h3>
           <p className="sub" style={{ marginTop: -4 }}>被动读 10 篇，不如自己写 1 篇。解释会逼出综合，这是长盘感最快的路。</p>
           <label>每周复盘：我判对 / 判错在哪、为什么</label>
           <textarea value={macro.weekly_review} onChange={e => saveMacro('weekly_review', e.target.value)} placeholder="周末回看本周事件日志，校准比覆盖量重要" />
@@ -314,7 +265,7 @@ export default function Trading() {
 
         {/* ===== 事件日志（§四） ===== */}
         <div className="card tint">
-          <h3>📓 四、事件日志</h3>
+          <h3>📓 事件日志</h3>
           <p className="sub" style={{ marginTop: -4 }}>坚持记录 + 复盘，3 个月出盘感</p>
           <label>日期</label>
           <input type="date" value={eventForm.date} onChange={e => setEventForm({ ...eventForm, date: e.target.value })} />
@@ -343,10 +294,11 @@ export default function Trading() {
           )}
         </div>
 
-        {/* ===== 参考手册（静态，折叠） ===== */}
+        {/* ===== 参考手册（纯文字整合，单一折叠） ===== */}
         <details className="card tint">
-          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>📚 一、8 个全球温度计（参考）</summary>
-          <p className="sub" style={{ marginTop: 6 }}>看盘面不是看涨跌，是看风险情绪坐标。</p>
+          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>📚 参考手册（全文整合）</summary>
+
+          <p className="sub" style={{ marginTop: 8, fontWeight: 700 }}>一、8 个全球温度计</p>
           <div className="tbl">
             <table>
               <tbody>
@@ -370,10 +322,8 @@ export default function Trading() {
             </table>
           </div>
           <p className="sub" style={{ marginTop: 6 }}>📌 口诀：<b>VIX↑ + 美元强 + 黄金涨 + 美股跌 = 避险</b>；反之 = 风险偏好。</p>
-        </details>
 
-        <details className="card tint">
-          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>🔗 二、事件 → 资产传导表（解读引擎）</summary>
+          <p className="sub" style={{ marginTop: 10, fontWeight: 700 }}>二、事件 → 资产传导表</p>
           <div className="tbl" style={{ marginTop: 6 }}>
             <table>
               <tbody>
@@ -398,11 +348,8 @@ export default function Trading() {
             </table>
           </div>
           <p className="sub" style={{ marginTop: 6 }}>关键判断：暴跌是「流动性/汇率驱动（全面系统性）」还是「盈利/基本面驱动（结构性分化）」？前者该躲，后者藏错杀机会。</p>
-        </details>
 
-        <details className="card tint">
-          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>🔬 8.3 资产探针（更纯的指标）</summary>
-          <p className="sub" style={{ marginTop: 6 }}>宽基指数混入太多成分股噪音，这些探针信号更干净。</p>
+          <p className="sub" style={{ marginTop: 10, fontWeight: 700 }}>8.3 资产探针（更纯的指标）</p>
           <div className="tbl" style={{ marginTop: 6 }}>
             <table>
               <tbody>
@@ -425,11 +372,8 @@ export default function Trading() {
             </table>
           </div>
           <p className="sub" style={{ marginTop: 6 }}>📌 AH 交易者重点看：<b>铜（中国需求代理）+ 美元流动性（新兴/港股命门）</b>，这俩基本定了你仓位的宏观脸色。</p>
-        </details>
 
-        <details className="card tint">
-          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>🎞️ 8.4 历史剧本库（盘感=模式匹配）</summary>
-          <p className="sub" style={{ marginTop: 6 }}>遇到异动脱口对上「这像哪段历史」，盘感就成了一半。</p>
+          <p className="sub" style={{ marginTop: 10, fontWeight: 700 }}>8.4 历史剧本库（盘感=模式匹配）</p>
           {PLAYBOOK.map(p => (
             <div className="playbook" key={p.t}>
               <h4>{p.t}</h4>
@@ -438,10 +382,8 @@ export default function Trading() {
             </div>
           ))}
           <p className="sub">用法：行情异动时自问「这像哪段历史？差在哪？」——强制模式匹配，比记住结论有用。</p>
-        </details>
 
-        <details className="card tint">
-          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>📊 8.5 领先 vs 滞后指标</summary>
+          <p className="sub" style={{ marginTop: 10, fontWeight: 700 }}>8.5 领先 vs 滞后指标</p>
           <div className="tbl" style={{ marginTop: 6 }}>
             <table>
               <tbody>
@@ -460,11 +402,8 @@ export default function Trading() {
             </table>
           </div>
           <p className="sub" style={{ marginTop: 6 }}>用领先指标判断「方向」，用滞后数据确认「已经发生」，不本末倒置。</p>
-        </details>
 
-        <details className="card tint">
-          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>📰 五、案例拆解 / 信息源分层</summary>
-          <p className="sub" style={{ marginTop: 6, fontWeight: 700 }}>案例：美日股市急速下跌的三种剧本</p>
+          <p className="sub" style={{ marginTop: 10, fontWeight: 700 }}>五、案例拆解 / 信息源分层</p>
           <p className="sub">1. <b>套息交易平仓</b>（2024/8/5）：BOJ 加息→日元急升→全球借日元买股资金平仓→VIX 飙 38→风险资产跟跌。看到「日经 -12%」，3 秒跑出「日元→套息→系统性」链。</p>
           <p className="sub">2. <b>衰退交易</b>：非农爆冷、PMI 破荣枯线→押注美联储落后曲线→成长股杀估值。</p>
           <p className="sub">3. <b>关税冲击</b>（2025/4）：全球 risk-off，出口链与周期股最惨。</p>
@@ -473,11 +412,8 @@ export default function Trading() {
           <p className="sub">深度：财新、21 世纪经济报道、FT 中文、Bloomberg、Reuters</p>
           <p className="sub">数据：FRED、TradingEconomics、腾讯自选股/Tushare/Wind</p>
           <p className="sub">观点：The Kobeissi Letter、Macro Compass、付鹏、管清友</p>
-        </details>
 
-        <details className="card tint">
-          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>📜 8.7 一手政策语言 / 8.8 微观反推宏观</summary>
-          <p className="sub" style={{ marginTop: 6, fontWeight: 700 }}>8.7 读一手政策语言（别只听媒体转述）</p>
+          <p className="sub" style={{ marginTop: 10, fontWeight: 700 }}>8.7 一手政策语言 / 8.8 微观反推宏观</p>
           <p className="sub">一手源：FOMC 声明/纪要、点阵图、ECB 账户、PBOC 货币政策执行报告、BIS 季度报告、各国财政部发文。</p>
           <p className="sub">读什么：不是结论，是措辞变化——删了「数据依赖」、加了「更久维持高位」、点阵图中枢上移、PBOC 提「逆周期调节」，都是定价信号。</p>
           <p className="sub" style={{ marginTop: 8, fontWeight: 700 }}>8.8 微观反推宏观（bottom-up → top-down）</p>
@@ -485,10 +421,8 @@ export default function Trading() {
           <p className="sub">半导体资本开支（英伟达、台积电）↑→AI 周期向上，拉动电力/铜。</p>
           <p className="sub">零售商（沃尔玛、Target）库存↑+降价→消费降温。</p>
           <p className="sub">中国地产/建材链数据→内需与政策力度信号。</p>
-        </details>
 
-        <details className="card tint">
-          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>🗓️ 九、训练频率表（贴在墙上的节奏）</summary>
+          <p className="sub" style={{ marginTop: 10, fontWeight: 700 }}>九、训练频率表</p>
           <div className="tbl" style={{ marginTop: 6 }}>
             <table>
               <tbody>
@@ -515,7 +449,7 @@ export default function Trading() {
 
         {/* ===== 每日动作清单（§六） ===== */}
         <div className="card tint">
-          <h3>✅ 六、每日动作清单</h3>
+          <h3>✅ 每日动作清单</h3>
           {CHECK_KEYS.map(k => (
             <div className="check-row" key={k}>
               <input type="checkbox" checked={!!(macro.checklist && macro.checklist[k])} onChange={() => toggleCheck(k)} />

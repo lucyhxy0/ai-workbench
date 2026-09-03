@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import TopBar from '../components/TopBar.jsx'
+import MacroThermo from '../components/MacroThermo.jsx'
 import { todayStr, prettyDate } from '../lib/date.js'
 import { api } from '../lib/api.js'
 
@@ -280,6 +281,9 @@ export default function Today() {
             </div>
           )}
         </div>
+
+        {/* 今日盘面定性器（与财经日报同框） */}
+        <MacroThermo />
 
         {/* 操盘提醒 */}
         <div className="card tint theme-trade">

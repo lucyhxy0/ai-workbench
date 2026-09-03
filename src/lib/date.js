@@ -16,6 +16,13 @@ export function weekOfMonth(d = new Date()) {
   return Math.ceil((d.getDate() + first.getDay()) / 7)
 }
 
+// 日期偏移：返回 dateStr 加减 deltaDays 天后的 YYYY-MM-DD
+export function shiftDate(dateStr, deltaDays) {
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setDate(d.getDate() + deltaDays)
+  return todayStr(d)
+}
+
 export function monthMatrix(year, month) {
   const first = new Date(year, month, 1)
   const startDay = first.getDay()

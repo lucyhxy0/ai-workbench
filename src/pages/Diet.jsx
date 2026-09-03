@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import TopBar from '../components/TopBar.jsx'
-import { todayStr, weekOfMonth } from '../lib/date.js'
+import { todayStr, weekOfMonth, shiftDate } from '../lib/date.js'
 import { api } from '../lib/api.js'
 
 function dayKcal(r) {
   const c = r.calories || {}
   return (Number(c.breakfast) || 0) + (Number(c.lunch) || 0) + (Number(c.dinner) || 0) + (Number(c.afternoon_tea) || 0) + (Number(c.drinks) || 0)
 }
+
+// 本周卡路里趋势（缩短）
 function WeeklyChart({ rows }) {
   const last7 = [...(rows || [])].reverse().slice(-7)
   const vals = last7.map(dayKcal)
-  const W = 320, H = 140, padX = 30, padY = 22
+  const W = 300, H = 110, padX = 26, padY = 14
   const max = Math.max(...vals, 100)
   const n = vals.length
   if (n === 0) return <p className="sub">暂无数据</p>
@@ -27,9 +29,39 @@ function WeeklyChart({ rows }) {
         <g key={i}>
           <circle cx={p[0]} cy={p[1]} r="3" fill="#ff8a5b" />
           <text x={p[0]} y={p[1] - 6} fontSize="9" textAnchor="middle" fill="var(--text)">{p[2] || ''}</text>
-          <text x={p[0]} y={H - 6} fontSize="8" textAnchor="middle" fill="var(--text)">{String(p[3]).slice(5)}</text>
+          <text x={p[0]} y={H - 3} fontSize="8" textAnchor="middle" fill="var(--text)">{String(p[3]).slice(5)}</text>
         </g>
       ))}
+    </svg>
+  )
+}
+
+// 体重 / 体脂趋势（扁曲线）
+function WeightChart({ rows }) {
+  const data = [...(rows || [])].reverse().filter(r => r.weight != null || r.body_fat != null).slice(-14)
+  if (data.length < 2) return <p className="sub">记录 2 天以上显示体重 / 体脂曲线</p>
+  const W = 300, H = 92, padX = 26, padY = 12
+  const ws = data.map(r => Number(r.weight)).filter(v => !isNaN(v))
+  const fs = data.map(r => Number(r.body_fat)).filter(v => !isNaN(v))
+  const wmax = Math.max(...ws, 1), wmin = Math.min(...ws, 0)
+  const fmax = Math.max(...fs, 1), fmin = Math.min(...fs, 0)
+  const n = data.length
+  const xs = i => padX + (W - padX * 2) * (n === 1 ? 0.5 : i / (n - 1))
+  const wy = v => H - padY - ((v - wmin) / ((wmax - wmin) || 1)) * (H - padY * 2)
+  const fy = v => H - padY - ((v - fmin) / ((fmax - fmin) || 1)) * (H - padY * 2)
+  const wpts = data.map((r, i) => r.weight != null ? [xs(i), wy(Number(r.weight)), String(r.date).slice(5)] : null).filter(Boolean)
+  const fpts = data.map((r, i) => r.body_fat != null ? [xs(i), fy(Number(r.body_fat)), String(r.date).slice(5)] : null).filter(Boolean)
+  const wpath = wpts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ')
+  const fpath = fpts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ')
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block' }}>
+      <line x1={padX} y1={H - padY} x2={W - padX} y2={H - padY} stroke="var(--border)" />
+      {fpts.length > 1 && <path d={fpath} fill="none" stroke="#C9B6E4" strokeWidth="2" strokeDasharray="4 3" />}
+      {wpts.length > 1 && <path d={wpath} fill="none" stroke="#f8a97b" strokeWidth="2" />}
+      {wpts.map((p, i) => <circle key={'w' + i} cx={p[0]} cy={p[1]} r="2.5" fill="#f8a97b" />)}
+      {fpts.map((p, i) => <circle key={'f' + i} cx={p[0]} cy={p[1]} r="2.5" fill="#C9B6E4" />)}
+      <text x={padX} y={H - 1} fontSize="9" fill="#f8a97b">体重</text>
+      {fpts.length > 0 && <text x={W - padX} y={H - 1} textAnchor="end" fontSize="9" fill="#C9B6E4">体脂</text>}
     </svg>
   )
 }
@@ -42,38 +74,34 @@ const MEALS = [
   { f: 'drinks', t: '🥤 饮品' }
 ]
 const VITAMINS = [
-  { f: 'vitamin_d', t: '维生素 D' },
-  { f: 'inositol', t: '肌醇' }
+  { f: 'vitamin_d', t: '维生素 D', am: 'vitamin_d_am', pm: 'vitamin_d_pm' },
+  { f: 'vitamin_b', t: '维生素 B', am: 'vitamin_b_am', pm: 'vitamin_b_pm' },
+  { f: 'inositol', t: '肌醇', am: 'inositol_am', pm: 'inositol_pm' }
 ]
 
 export default function Diet() {
   const today = todayStr()
+  const [viewDate, setViewDate] = useState(today)
   const [diet, setDiet] = useState(null)
   const [history, setHistory] = useState([])
-  const [briefing, setBriefing] = useState(null)
-  const [msg, setMsg] = useState('')
   const [editing, setEditing] = useState({
     breakfast: false, lunch: false, dinner: false, afternoon_tea: false, drinks: false
   })
   const [estimating, setEstimating] = useState(false)
+  const [msg, setMsg] = useState('')
 
-  async function load() {
+  async function load(date = viewDate) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const uid = user.id
-
-    let { data: d } = await supabase.from('diet').select('*').eq('user_id', uid).eq('date', today).maybeSingle()
-    if (!d) { const { data: nd } = await supabase.from('diet').insert({ user_id: uid, date: today }).select().single(); d = nd }
+    let { data: d } = await supabase.from('diet').select('*').eq('user_id', uid).eq('date', date).maybeSingle()
+    if (!d) { const { data: nd } = await supabase.from('diet').insert({ user_id: uid, date }).select().single(); d = nd }
     setDiet(d)
-
-    const { data: b } = await supabase.from('briefings').select('*').eq('user_id', uid).eq('date', today).maybeSingle()
-    setBriefing(b)
-
-    const { data: h } = await supabase.from('diet').select('date,breakfast,lunch,dinner,afternoon_tea,drinks,calories,vitamin_d,vitamin_d_am,vitamin_d_pm,inositol,inositol_am,inositol_pm,note,weight,body_fat').eq('user_id', uid).order('date', { ascending: false }).limit(14)
+    const { data: h } = await supabase.from('diet').select('date,breakfast,lunch,dinner,afternoon_tea,drinks,calories,vitamin_d_am,vitamin_d_pm,vitamin_b_am,vitamin_b_pm,inositol_am,inositol_pm,note,weight,body_fat').eq('user_id', uid).order('date', { ascending: false }).limit(14)
     setHistory(h || [])
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(viewDate) }, [viewDate])
 
   async function save(field, value) {
     if (!diet) return
@@ -94,7 +122,6 @@ export default function Diet() {
       const meals = {}
       for (const m of MEALS) meals[m.f] = diet[m.f] || ''
       const r = await api.caloriesEstimate(meals)
-      // 一次性累积所有餐，只写一次，避免循环里后者覆盖前者
       const next = (diet.calories && typeof diet.calories === 'object') ? { ...diet.calories } : {}
       for (const m of MEALS) {
         const v = r.calories?.[m.f]
@@ -113,12 +140,20 @@ export default function Diet() {
 
   if (!diet) return <div className="empty">加载中…</div>
 
+  const vd = new Date(viewDate + 'T00:00:00')
+
   return (
     <>
-      <TopBar title="饮食" right={<span className="tag">{weekOfMonth()}周</span>} />
+      <TopBar title="饮食" right={<span className="tag">{weekOfMonth(vd)}周</span>} />
       <div className="page theme-diet">
+
+        {/* 餐 + 日期导航 */}
         <div className="card washi tint">
-          <h3>🍱 {today} 饮食</h3>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn ghost sm" style={{ width: 'auto' }} onClick={() => setViewDate(s => shiftDate(s, -1))}>← 前一天</button>
+            <span>{viewDate} 饮食</span>
+            {viewDate !== today && <button className="btn ghost sm" style={{ width: 'auto' }} onClick={() => setViewDate(today)}>今天</button>}
+          </h3>
           {MEALS.map(m => (
             <div className="meal" key={m.f}>
               <div className="mhead">
@@ -136,17 +171,22 @@ export default function Diet() {
           ))}
         </div>
 
+        {/* 维生素打卡 */}
         <div className="card tint">
           <h3>💊 维生素打卡</h3>
           {VITAMINS.map(v => (
-            <div key={v.f} className="check-row">
-              <span className={`checkbox ${diet[v.f] ? 'on' : ''}`} onClick={() => save(v.f, !diet[v.f])}>{diet[v.f] ? '✓' : ''}</span>
+            <div className="check-row" key={v.f}>
+              <span className="vbox">
+                <span className={`checkbox sm ${diet[v.am] ? 'on' : ''}`} onClick={() => save(v.am, !diet[v.am])}>{diet[v.am] ? '✓' : '早'}</span>
+                <span className={`checkbox sm ${diet[v.pm] ? 'on' : ''}`} onClick={() => save(v.pm, !diet[v.pm])}>{diet[v.pm] ? '✓' : '晚'}</span>
+              </span>
               <span className="label">{v.t}</span>
-              <span className="sub">{diet[v.f] ? '已吃' : '未吃'}</span>
+              <span className="sub">{diet[v.am] || diet[v.pm] ? '已吃' : '未吃'}</span>
             </div>
           ))}
         </div>
 
+        {/* 今日卡路里计算 */}
         <div className="card tint">
           <h3>🔥 今日卡路里计算</h3>
           <div className="kcal-total">
@@ -162,37 +202,51 @@ export default function Diet() {
               </div>
             ))}
           </div>
-          <button className="btn ghost sm" style={{ marginTop: 10 }} disabled={estimating} onClick={estimate}>{estimating ? '自动计算中…' : '✨ 自动计算全部卡路里'}</button>
+          <button className="btn ghost sm" style={{ marginTop: 10, width: 'auto' }} disabled={estimating} onClick={estimate}>{estimating ? '自动计算中…' : '✨ 自动计算全部卡路里'}</button>
           {msg && <p className="muted center" style={{ fontSize: 13 }}>{msg}</p>}
         </div>
 
+        {/* 卡路里趋势（计算下方） */}
+        <div className="card washi tint">
+          <h3>📈 本周卡路里趋势</h3>
+          <WeeklyChart rows={history} />
+        </div>
+
+        {/* 身体状况（一直显示） */}
+        <div className="card tint">
+          <h3>🩺 身体状况</h3>
+          <div className="body-show">
+            <div className="bv"><span className="num">{diet.weight ?? '—'}</span><span className="u">kg</span><div className="bl">体重</div></div>
+            <div className="bv"><span className="num">{diet.body_fat ?? '—'}</span><span className="u">%</span><div className="bl">体脂率</div></div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <label style={{ marginTop: 0, minWidth: 72 }}>体重 (kg)</label>
+              <input type="number" inputMode="decimal" min="0" value={diet.weight ?? ''}
+                onChange={e => setDiet({ ...diet, weight: e.target.value === '' ? null : Number(e.target.value) })} placeholder="0" style={{ marginTop: 0 }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <label style={{ marginTop: 0, minWidth: 72 }}>体脂率 (%)</label>
+              <input type="number" inputMode="decimal" min="0" value={diet.body_fat ?? ''}
+                onChange={e => setDiet({ ...diet, body_fat: e.target.value === '' ? null : Number(e.target.value) })} placeholder="0" style={{ marginTop: 0 }} />
+            </div>
+          </div>
+          <button className="btn" style={{ marginTop: 10 }} onClick={async () => { await save('weight', diet.weight); await save('body_fat', diet.body_fat); setMsg('身体状况已保存 ✓'); setTimeout(() => setMsg(''), 1500) }}>确认</button>
+        </div>
+
+        {/* 体重 / 体脂趋势（扁曲线） */}
+        <div className="card tint">
+          <h3>📉 体重 / 体脂趋势</h3>
+          <WeightChart rows={history} />
+        </div>
+
+        {/* 备注（最底部） */}
         <div className="card washi tint">
           <h3>📝 备注</h3>
           <textarea value={diet.note || ''} onChange={e => setDiet({ ...diet, note: e.target.value })} placeholder="今天想记的小事 / 心情 / 备注" style={{ minHeight: 54 }} />
           <button className="btn" style={{ marginTop: 8 }} onClick={() => save('note', diet.note || '')}>确认</button>
         </div>
 
-        <div className="card tint">
-          <h3>📈 本周卡路里趋势</h3>
-          <WeeklyChart rows={history} />
-        </div>
-
-        <div className="card tint">
-          <h3>🩺 身体状况</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
-            <label style={{ fontSize: 13, minWidth: 86 }}>体重 (kg)</label>
-            <input type="number" inputMode="decimal" min="0" value={diet.weight ?? ''}
-              onChange={e => setDiet({ ...diet, weight: e.target.value === '' ? null : Number(e.target.value) })}
-              placeholder="0" style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-            <label style={{ fontSize: 13, minWidth: 86 }}>体脂率 (%)</label>
-            <input type="number" inputMode="decimal" min="0" value={diet.body_fat ?? ''}
-              onChange={e => setDiet({ ...diet, body_fat: e.target.value === '' ? null : Number(e.target.value) })}
-              placeholder="0" style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
-          </div>
-          <button className="btn" style={{ marginTop: 10 }} onClick={async () => { await save('weight', diet.weight); await save('body_fat', diet.body_fat); setMsg('身体状况已保存 ✓'); setTimeout(() => setMsg(''), 1500) }}>确认</button>
-        </div>
       </div>
     </>
   )

@@ -292,6 +292,12 @@ ALTER TABLE public.macro_daily ADD COLUMN IF NOT EXISTS weekly_review text DEFAU
 ALTER TABLE public.macro_daily ADD COLUMN IF NOT EXISTS sunday_base text DEFAULT '';
 
 -- ============================================================
+-- 2026-09-03 扩展：饮食页维生素 B 早/晚 双打卡（幂等，可重复执行）
+-- ============================================================
+ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS vitamin_b_am boolean DEFAULT false;
+ALTER TABLE public.diet ADD COLUMN IF NOT EXISTS vitamin_b_pm boolean DEFAULT false;
+
+-- ============================================================
 -- 2026-09-02 新增表：今日页拍立得照片（持久化，替代 localStorage）
 -- 幂等，可重复执行
 -- ============================================================

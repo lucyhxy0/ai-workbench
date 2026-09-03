@@ -145,13 +145,18 @@ label { font-size: 13px; color: var(--ink-dim); font-weight: 600; margin-top: 8p
 /* ---------- 复选 / 打卡 ---------- */
 .check-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--line); }
 .check-row:last-child { border-bottom: none; }
-.check-row .label { flex: 1; }
+.check-row .label { flex: 1; font-size: 14px; line-height: 1.4; }
+/* 修复：原生复选框被全局 input{width:100%} 撑成宽条，挤小右侧文字 */
+.check-row input[type="checkbox"] { width: 20px; height: 20px; flex: 0 0 auto; accent-color: var(--primary-deep); margin: 0; }
 .checkbox {
   width: 26px; height: 26px; border-radius: var(--radius-sm); border: 2px solid var(--accent, var(--primary));
   display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
   background: var(--paper-2); transition: all .12s; font-weight: 800;
 }
 .checkbox.on { background: var(--accent, var(--primary)); border-color: var(--accent, var(--primary)); color: #fff; }
+.checkbox.sm { width: 22px; height: 22px; font-size: 11px; border-width: 2px; color: var(--ink-dim); }
+.checkbox.sm.on { color: #fff; }
+.vbox { display: inline-flex; gap: 6px; flex-shrink: 0; }
 
 /* ---------- 底部导航 ---------- */
 .bottom-nav {
@@ -289,6 +294,13 @@ label { font-size: 13px; color: var(--ink-dim); font-weight: 600; margin-top: 8p
 .kbar-track { flex: 1; height: 8px; border-radius: 99px; background: var(--paper-2); overflow: hidden; border: 1px solid var(--line); }
 .kbar-track > i { display: block; height: 100%; background: var(--peach); border-radius: 99px; }
 .kbar .kv { width: 34px; text-align: right; flex-shrink: 0; color: var(--ink-dim); }
+
+/* 身体状况：一直显示的体重/体脂 */
+.body-show { display: flex; gap: 12px; }
+.body-show .bv { flex: 1; text-align: center; background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 6px; }
+.body-show .num { font-family: "Caveat", "Quicksand", sans-serif; font-size: 28px; font-weight: 800; color: var(--primary-deep); line-height: 1; }
+.body-show .u { font-size: 12px; color: var(--ink-dim); margin-left: 2px; }
+.body-show .bl { font-size: 12px; color: var(--ink-dim); margin-top: 4px; }
 
 /* 日历时间轴 */
 .timeline { margin-top: 4px; }
