@@ -331,3 +331,28 @@ label { font-size: 13px; color: var(--ink-dim); font-weight: 600; margin-top: 8p
 .tag.amber { background: #FDF3B8; color: #6b5a1f; border-color: #ecd97f; }
 .tag.green { background: #D6F2E6; color: #2c5b49; border-color: #a9ddca; }
 .done-date { display: block; font-size: 11px; color: var(--ink-dim); font-weight: 400; margin-top: 2px; }
+
+/* =========================================================
+   宏观速读手册 · 交互控件
+   ========================================================= */
+.seg { display: flex; gap: 4px; margin-top: 6px; }
+.seg button { flex: 1; padding: 7px 4px; font-size: 12px; border: 1.5px solid var(--line); background: var(--paper-2); border-radius: var(--radius-sm); cursor: pointer; color: var(--ink-dim); font-family: inherit; }
+.seg button.off { background: #FBD9D2; border-color: #f0b3a8; color: #8a4234; font-weight: 700; }
+.seg button.on { background: #D6F2E6; border-color: #a9ddca; color: #2c5b49; font-weight: 700; }
+.seg button.flat { background: var(--lemon); border-color: #ecd97f; color: #6b5a1f; font-weight: 700; }
+.thermo-row { padding: 9px 0; border-bottom: 1px dashed var(--line); }
+.thermo-row:last-child { border-bottom: none; }
+.thermo-row .nm { font-size: 14px; font-weight: 700; }
+.thermo-row .en { font-size: 11px; color: var(--ink-dim); }
+.verdict { text-align: center; padding: 14px; border-radius: var(--radius); margin: 10px 0; }
+.verdict.off { background: #FBD9D2; color: #8a4234; }
+.verdict.on { background: #D6F2E6; color: #2c5b49; }
+.verdict.mid { background: var(--paper-2); color: var(--ink-dim); }
+.verdict .big { font-family: "ZCOOL KuaiLe", cursive; font-size: 26px; display: block; }
+.verdict .sub { font-size: 12px; }
+.chip { display: inline-block; padding: 6px 12px; margin: 3px; border-radius: 99px; border: 1.5px solid var(--line); background: var(--paper-2); font-size: 13px; cursor: pointer; color: var(--ink-dim); }
+.chip.on { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 700; }
+.playbook { border: 1px dashed var(--line); border-radius: var(--radius-sm); padding: 10px 12px; margin: 8px 0; background: color-mix(in srgb, var(--accent) 8%, var(--paper)); }
+.playbook h4 { margin: 0 0 4px; font-size: 14px; }
+.playbook p { margin: 0; font-size: 13px; color: var(--ink); }
+.exp-item { border: 1px dashed var(--line); border-radius: var(--radius-sm); padding: 9px 11px; margin-top: 8px; font-size: 13px; }

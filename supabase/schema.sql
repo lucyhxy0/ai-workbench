@@ -282,6 +282,16 @@ CREATE TRIGGER trg_macro_daily_updated BEFORE UPDATE ON public.macro_daily
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated();
 
 -- ============================================================
+-- 2026-09-02 扩展：宏观速读手册新增字段（幂等，可重复执行）
+-- 已建好库的用户，只需在 SQL Editor 执行本段即可追加字段。
+-- ============================================================
+ALTER TABLE public.macro_daily ADD COLUMN IF NOT EXISTS thermo_readings jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE public.macro_daily ADD COLUMN IF NOT EXISTS expectations jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE public.macro_daily ADD COLUMN IF NOT EXISTS cross_signals jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE public.macro_daily ADD COLUMN IF NOT EXISTS weekly_review text DEFAULT '';
+ALTER TABLE public.macro_daily ADD COLUMN IF NOT EXISTS sunday_base text DEFAULT '';
+
+-- ============================================================
 -- 2026-09-02 新增表：今日页拍立得照片（持久化，替代 localStorage）
 -- 幂等，可重复执行
 -- ============================================================
