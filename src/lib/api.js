@@ -36,5 +36,7 @@ export const api = {
   favoritesSync: () => post('/favorites', { action: 'sync' }),
   favoritesRecat: (id, title) => post('/favorites', { action: 'recat', id, title }),
   // 估算三餐热量
-  caloriesEstimate: (meals) => post('/calories', { meals })
+  caloriesEstimate: (meals) => post('/calories', { meals }),
+  // 每周健康诊断
+  healthReport: (diet, profile) => post('/health-report', { diet, profile })
 }
