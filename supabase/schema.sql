@@ -311,4 +311,42 @@ DROP POLICY IF EXISTS "own rows" ON public.pet_photo;
 CREATE POLICY "own rows" ON public.pet_photo
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+-- ============================================================
+-- 2026-09-04 新增：健康档案 + 每周健康诊断报告
+-- 幂等，可重复执行
+-- ============================================================
+
+-- 健康档案（每个用户一行，基线信息存 jsonb，便于从其他平台迁入自由文本）
+CREATE TABLE IF NOT EXISTS public.health_profile (
+  user_id    uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  profile    jsonb DEFAULT '{}'::jsonb,   -- 性别/年龄/身高/当前体重/目标体重/目标热量/病史/过敏/用药/运动/饮食偏好…
+  updated_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.health_profile ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own rows" ON public.health_profile;
+CREATE POLICY "own rows" ON public.health_profile
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- 每周健康诊断报告
+CREATE TABLE IF NOT EXISTS public.health_reports (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  week_start  date NOT NULL,
+  week_end    date NOT NULL,
+  result      jsonb DEFAULT '{}'::jsonb,  -- 结构化诊断结果
+  created_at  timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_health_reports_user ON public.health_reports(user_id, week_start);
+ALTER TABLE public.health_reports ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own rows" ON public.health_reports;
+CREATE POLICY "own rows" ON public.health_reports
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- ============================================================
+-- 健康档案触发器修正（上面误写的 FOR ALL 改为 BEFORE UPDATE）
+-- ============================================================
+DROP TRIGGER IF EXISTS trg_health_profile_updated ON public.health_profile;
+CREATE TRIGGER trg_health_profile_updated BEFORE UPDATE ON public.health_profile
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated();
+
 
