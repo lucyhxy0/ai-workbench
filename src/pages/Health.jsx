@@ -4,22 +4,7 @@ import TopBar from '../components/TopBar.jsx'
 import { todayStr, shiftDate, prettyDate } from '../lib/date.js'
 import { api } from '../lib/api.js'
 
-const PROFILE_FIELDS = [
-  { key: 'gender', label: '性别', ph: '女 / 男' },
-  { key: 'age', label: '年龄', ph: '如 28' },
-  { key: 'height', label: '身高(cm)', ph: '如 165' },
-  { key: 'current_weight', label: '当前体重(kg)', ph: '如 55' },
-  { key: 'target_weight', label: '目标体重(kg)', ph: '如 52' },
-  { key: 'target_calories', label: '每日目标热量(kcal)', ph: '如 1500' },
-  { key: 'conditions', label: '基础病史 / 慢病', ph: '如 甲减、桥本、多囊…', area: true },
-  { key: 'allergies', label: '过敏', ph: '如 海鲜、坚果', area: true },
-  { key: 'medications', label: '长期用药', ph: '如 优甲乐', area: true },
-  { key: 'exercise', label: '运动习惯', ph: '如 每周3次瑜伽', area: true },
-  { key: 'diet_prefs', label: '饮食偏好 / 忌口', ph: '如 低碘、少油', area: true },
-  { key: 'others', label: '其他备注', ph: '其他想让 AI 知道的健康信息', area: true }
-]
-
-// AI 按用户发的《健康档案.md》(2026-09-04) 解析好的预设，登录后一键写入
+// AI 按用户发的《健康档案.md》(2026-09-04) 解析好的预设，进页面时静默写入数据库（不在页面显示）
 const DEFAULT_PROFILE = {
   gender: '女',
   age: 28,
@@ -50,7 +35,6 @@ function scoreColor(s) {
 
 export default function Health() {
   const [profile, setProfile] = useState({})
-  const [saving, setSaving] = useState(false)
   const [report, setReport] = useState(null)
   const [history, setHistory] = useState([])
   const [generating, setGenerating] = useState(false)
@@ -63,31 +47,17 @@ export default function Health() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       const uid = user.id
-      const { data: p } = await supabase.from('health_profile').select('*').eq('user_id', uid).maybeSingle()
+      let { data: p } = await supabase.from('health_profile').select('*').eq('user_id', uid).maybeSingle()
+      // 档案不在页面显示，但需入库供诊断使用：首次进入若库里没有，静默写入预设
+      if (!p) {
+        const { data: ins } = await supabase.from('health_profile').upsert({ user_id: uid, profile: DEFAULT_PROFILE }).select().single()
+        p = ins
+      }
       if (p) setProfile(p.profile || {})
       const { data: h } = await supabase.from('health_reports').select('*').eq('user_id', uid).order('week_start', { ascending: false }).limit(20)
       setHistory(h || [])
       if (h && h.length) setReport(h[0].result)
     } catch (e) { console.error(e) }
-  }
-
-  function setField(k, v) { setProfile(p => ({ ...p, [k]: v })) }
-
-  async function saveProfile(override) {
-    setSaving(true); setMsg('')
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { setMsg('请先登录后再保存'); return }
-      const { error } = await supabase.from('health_profile').upsert({ user_id: user.id, profile: override || profile })
-      if (error) throw error
-      setMsg('✅ 健康档案已保存')
-    } catch (e) { setMsg('保存失败：' + e.message) }
-    finally { setSaving(false) }
-  }
-
-  async function loadPreset() {
-    setProfile(DEFAULT_PROFILE)
-    await saveProfile(DEFAULT_PROFILE)
   }
 
   async function generate() {
@@ -169,27 +139,6 @@ export default function Health() {
   return (
     <div className="page">
       <TopBar title="健康诊断" />
-
-      <section className="card">
-        <div className="top">
-          <span className="lbl">🩺 健康档案</span>
-          <button className="btn sm" disabled={saving} onClick={saveProfile}>{saving ? '保存中…' : '保存档案'}</button>
-        </div>
-        <div className="note">从其他平台搬来的档案，发给我、我帮你填进去也行；这里也能自己改。</div>
-        <button className="btn preset" disabled={saving} onClick={loadPreset}>
-          📥 一键载入预设档案（AI 已按你发的《健康档案.md》解析好）
-        </button>
-        <div className="form-grid">
-          {PROFILE_FIELDS.map(f => (
-            <div key={f.key} className={f.area ? 'field area' : 'field'}>
-              <label>{f.label}</label>
-              {f.area
-                ? <textarea value={profile[f.key] || ''} placeholder={f.ph} onChange={e => setField(f.key, e.target.value)} />
-                : <input value={profile[f.key] || ''} placeholder={f.ph} onChange={e => setField(f.key, e.target.value)} />}
-            </div>
-          ))}
-        </div>
-      </section>
 
       <section className="card">
         <div className="top">
