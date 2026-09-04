@@ -5,7 +5,6 @@ const items = [
   { to: '/diet', ic: '🍱', label: '饮食' },
   { to: '/trading', ic: '📈', label: '操盘' },
   { to: '/calendar', ic: '📆', label: '日历' },
-  { to: '/inbox', ic: '📥', label: '收藏' },
   { to: '/pet', ic: '🐱', label: '宠物' },
   { to: '/health', ic: '🩺', label: '健康' },
   { to: '/chat', ic: '💬', label: '对话' }
