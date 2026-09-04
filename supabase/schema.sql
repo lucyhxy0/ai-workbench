@@ -342,6 +342,20 @@ DROP POLICY IF EXISTS "own rows" ON public.health_reports;
 CREATE POLICY "own rows" ON public.health_reports
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+-- 宠物健康档案（每个用户一行，基线信息存 jsonb，从《宠物健康档案.md》迁入）
+CREATE TABLE IF NOT EXISTS public.pet_profile (
+  user_id    uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  profile    jsonb DEFAULT '{}'::jsonb,   -- 名字/品种/性别/绝育/年龄/建档体重/心脏检查/日常观察/年度清单/就诊记录…
+  updated_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.pet_profile ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own rows" ON public.pet_profile;
+CREATE POLICY "own rows" ON public.pet_profile
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP TRIGGER IF EXISTS trg_pet_profile_updated ON public.pet_profile;
+CREATE TRIGGER trg_pet_profile_updated BEFORE UPDATE ON public.pet_profile
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated();
+
 -- ============================================================
 -- 健康档案触发器修正（上面误写的 FOR ALL 改为 BEFORE UPDATE）
 -- ============================================================
