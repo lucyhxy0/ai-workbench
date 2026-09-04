@@ -97,3 +97,5 @@ ai-workbench/
 - 所有密钥存于 Vercel 环境变量 / 本机 .env.local（已 gitignore），不进代码
 - 传输全程 HTTPS，存储 AES-256 加密
 - Supabase 免费版项目空闲 1 周会暂停，App 内数据仍可在本地缓存查看，恢复后自动同步
+
+Last deploy trigger: 2026-09-04T15:20:33.561Z
