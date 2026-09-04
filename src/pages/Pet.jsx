@@ -30,6 +30,34 @@ function money(n) {
   return '¥' + v.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
+// AI 按用户《宠物健康档案.md》(2026-08-02) 解析好的预设，进页面时静默写入数据库（不在页面显示）
+const DEFAULT_PET_PROFILE = {
+  name: '',
+  breed: '银点（银色重点色）',
+  gender: '公猫',
+  neutered: '已绝育',
+  birthday: '',
+  age_note: '差 1 个月满 4 岁（截至 2026-08-02）',
+  archive_date: '2026-08-02',
+  weight_records: [
+    { date: '2026-08-02', weight: 4.3, note: '建档体重' }
+  ],
+  heart: {
+    last_echocardiogram: '一岁生日时心脏超声正常',
+    next_recommendation: '尽快安排复查，最好今年、4 岁生日前后完成；之后遵医嘱每 1-2 年复查',
+    note: '银点/英短血统属心肌肥厚（HCM）相对高发，一岁基线正常不代表以后无风险；距上次已近 3 年，今年复查有必要'
+  },
+  daily_observation: {
+    resting_rr: '静息呼吸频率低于 30 次/分钟（睡着时数 1 分钟）',
+    warning_signs: ['咳嗽', '呼吸变快', '精神变差', '食欲下降', '后肢无力', '突然晕倒'],
+    action: '出现以上任一情况，不要等年度体检，尽快就医'
+  },
+  annual_checklist: ['体重/体况评分', '心脏听诊', '疫苗', '体内外驱虫', '口腔检查', '肾脏/泌尿检查（成年后开始关注）'],
+  visit_records: [
+    { date: '一岁生日', item: '心脏超声', result: '正常', note: '' }
+  ]
+}
+
 export default function Pet() {
   const today = todayStr()
   const [logs, setLogs] = useState([])
@@ -43,10 +71,16 @@ export default function Pet() {
   async function load() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data } = await supabase.from('pet_logs').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(200)
+    const uid = user.id
+    // 宠物健康档案：进页面静默写入（仅数据库，不在页面显示）
+    const { data: p } = await supabase.from('pet_profile').select('user_id').eq('user_id', uid).maybeSingle()
+    if (!p) {
+      await supabase.from('pet_profile').upsert({ user_id: uid, profile: DEFAULT_PET_PROFILE })
+    }
+    const { data } = await supabase.from('pet_logs').select('*').eq('user_id', uid).order('date', { ascending: false }).limit(200)
     setLogs(data || [])
     const { data: w } = await supabase.from('pet_logs')
-      .select('date, weight').eq('user_id', user.id).eq('category', '体重')
+      .select('date, weight').eq('user_id', uid).eq('category', '体重')
       .not('weight', 'is', null).order('date', { ascending: false }).order('created_at', { ascending: false }).limit(1).maybeSingle()
     setLatestWeight(w || null)
   }
