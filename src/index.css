@@ -397,3 +397,12 @@ label { font-size: 13px; color: var(--ink-dim); font-weight: 600; margin-top: 8p
 .hist-item .hs { font-size: 13px; }
 .hist-item .hn { font-size: 12px; color: var(--ink-dim); }
 .toast { position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 9px 16px; border-radius: 99px; font-size: 13px; z-index: 50; }
+
+/* 实时行情条 */
+.quotes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.quote { flex: 1 1 calc(50% - 8px); min-width: 140px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 9px 11px; display: flex; flex-direction: column; gap: 3px; }
+.quote .ql { font-size: 12px; color: var(--ink-dim); }
+.quote .qv { font-size: 17px; font-weight: 700; color: var(--ink); letter-spacing: -0.3px; }
+.quote .qch { font-size: 12px; font-weight: 600; }
+.quote .qch.up { color: #e23c3c; }
+.quote .qch.down { color: #1a9d5a; }
