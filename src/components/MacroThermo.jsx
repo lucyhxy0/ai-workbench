@@ -23,6 +23,7 @@ const THERMO = [
 ]
 
 const LOCAL = { user_id: null, date: todayStr(), risk_on: '', driver: '', flow: '', conclusion: '', checklist: {}, thermo_readings: {}, expectations: [], cross_signals: {}, weekly_review: '', sunday_base: '' }
+const READINGS = ['off', 'flat', 'on']
 
 export default function MacroThermo() {
   const today = todayStr()
@@ -53,10 +54,21 @@ export default function MacroThermo() {
     let alive = true
     fetch('/api/market')
       .then(r => r.json())
-      .then(j => { if (alive && j && j.quotes) setMarket(Object.fromEntries(j.quotes.map(q => [q.symbol, q]))) })
+      .then(j => {
+        if (!alive || !j || !j.quotes) return
+        const map = Object.fromEntries(j.quotes.map(q => [q.symbol, q]))
+        setMarket(map)
+      })
       .catch(() => {})
     return () => { alive = false }
   }, [])
+
+  // 行情到后自动填满 8 温度计；缺数据的按联动规则补上
+  useEffect(() => {
+    if (!market || !macro) return
+    autoFill(market, macro.thermo_readings)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [market, macro?.id])
 
   async function saveMacro(field, value) {
     if (!macro) return
@@ -76,18 +88,43 @@ export default function MacroThermo() {
     return { cls: 'mid', big: '中性 / 分化', sub: `避险 ${off} · 偏好 ${on} → 信号不清晰，等确认` }
   }
 
-  // 按实时行情自动填相关温度计（粗判，仅供参考，可手动覆盖）
-  function autoFill() {
-    if (!market || !macro) return
-    const set = (k, v) => setThermo(k, v)
-    const vix = market['^VIX'], dxy = market['DX-Y.NYB'], tnx = market['^TNX'], xau = market['GC=F']
+  // 按实时行情 + 联动规则自动填 8 温度计（粗判，可手动覆盖）
+  function autoFill(mkt = market, base = macro?.thermo_readings || {}) {
+    if (!mkt || !macro) return
+    const next = { ...base }
+    const get = (sym) => mkt[sym]
+    const vix = get('^VIX'), dxy = get('DX-Y.NYB'), tnx = get('^TNX'), xau = get('GC=F')
+
+    // 有直接行情的四项
     if (vix && Number(vix.value) != null) {
       const v = Number(vix.value)
-      set('vix', v > 22 ? 'off' : v < 15 ? 'on' : 'flat')
+      next.vix = v > 22 ? 'off' : v < 15 ? 'on' : 'flat'
     }
-    if (dxy) set('dxy', dxy.changePercent > 0 ? 'off' : 'on')
-    if (tnx) set('us10y', tnx.changePercent > 0 ? 'flat' : 'on')
-    if (xau) set('xau', xau.changePercent > 0 ? 'off' : 'on')
+    if (dxy) next.dxy = dxy.changePercent > 0 ? 'off' : dxy.changePercent < 0 ? 'on' : 'flat'
+    if (tnx) next.us10y = tnx.changePercent > 0 ? 'flat' : tnx.changePercent < 0 ? 'on' : 'flat'
+    if (xau) next.xau = xau.changePercent > 0 ? 'off' : xau.changePercent < 0 ? 'on' : 'flat'
+
+    // 无直接行情的四项：按联动规则自动补上（仅在尚未手动填过时写入）
+    if (!next.usdjpy) {
+      if (next.dxy === 'off') next.usdjpy = 'on'          // 美元强 → 日元弱 → 套息未平
+      else if (next.dxy === 'on') next.usdjpy = 'off'     // 美元弱 → 日元强
+      else next.usdjpy = 'flat'
+    }
+    if (!next.wti) {
+      if (next.vix === 'off' || next.xau === 'off') next.wti = 'off' // 避险/通胀升温
+      else next.wti = 'flat'
+    }
+    if (!next.us) {
+      if (next.vix === 'on') next.us = 'on'        // 恐慌低 → 风险偏好
+      else if (next.vix === 'off') next.us = 'off' // 恐慌高 → 风险规避
+      else next.us = 'flat'
+    }
+    if (!next.asia) {
+      if (next.us !== 'flat') next.asia = next.us  // 亚太跟随美股隔夜情绪
+      else next.asia = 'flat'
+    }
+
+    saveMacro('thermo_readings', next)
   }
 
   if (!macro) return <div className="card tint"><p className="sub">加载中…</p></div>
@@ -97,12 +134,12 @@ export default function MacroThermo() {
   return (
     <div className="card tint">
       <h3>🧭 今日盘面定性器</h3>
-      <p className="sub" style={{ marginTop: -4 }}>对 8 个温度计各判「避险 / 中性 / 偏好」，自动算出今天的风险坐标。</p>
+      <p className="sub" style={{ marginTop: -4 }}>对 8 个温度计各判「避险 / 中性 / 偏好」，行情到后自动填；可手动调整。</p>
 
       {market && (
         <div className="mkt-autofill">
-          <button className="btn ghost sm" onClick={autoFill}>📡 按实时行情自动填入</button>
-          <span className="note" style={{ marginLeft: 6 }}>粗判仅供参考，可手动调整</span>
+          <button className="btn ghost sm" onClick={() => autoFill()}>📡 按实时行情重新填入</button>
+          <span className="note" style={{ marginLeft: 6 }}>粗判仅供参考</span>
         </div>
       )}
 
@@ -118,6 +155,11 @@ export default function MacroThermo() {
               <span className={market[t.sym].changePercent >= 0 ? 'qch up' : 'qch down'}>
                 {market[t.sym].changePercent >= 0 ? '▲' : '▼'} {Math.abs(market[t.sym].changePercent).toFixed(2)}%
               </span>
+            </div>
+          )}
+          {!t.sym && (
+            <div className="mkt-live">
+              <span className="note">联动推断：{READINGS.includes(macro.thermo_readings?.[t.k]) ? (macro.thermo_readings[t.k] === 'off' ? '避险' : macro.thermo_readings[t.k] === 'on' ? '偏好' : '中性') : '—'}</span>
             </div>
           )}
           <div className="seg">
