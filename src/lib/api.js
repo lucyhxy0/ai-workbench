@@ -38,5 +38,7 @@ export const api = {
   // 估算三餐热量
   caloriesEstimate: (meals) => post('/calories', { meals }),
   // 每周健康诊断
-  healthReport: (diet, profile) => post('/health-report', { diet, profile })
+  healthReport: (diet, profile) => post('/health-report', { diet, profile }),
+  // 冰箱库存意图识别（对话中自动增删查）
+  fridgeIntent: (message) => post('/fridge', { message })
 }
