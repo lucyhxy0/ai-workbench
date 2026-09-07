@@ -10,13 +10,13 @@ function withTimeout(promise, ms = 4000) {
   ])
 }
 
-// 8 温度计（§一）
+// 8 温度计（§一）；带 sym 的可由实时行情自动填入
 const THERMO = [
-  { k: 'vix', n: 'VIX 恐慌指数', en: 'VIX', h: '>20 紧张，>30 恐慌' },
-  { k: 'dxy', n: '美元指数', en: 'DXY', h: '强=资金回流美国=新兴市场承压' },
-  { k: 'us10y', n: '美十债收益率', en: 'US 10Y', h: '升=紧缩/增长强；降=降息预期' },
+  { k: 'vix', n: 'VIX 恐慌指数', en: 'VIX', h: '>20 紧张，>30 恐慌', sym: '^VIX' },
+  { k: 'dxy', n: '美元指数', en: 'DXY', h: '强=资金回流美国=新兴市场承压', sym: 'DX-Y.NYB' },
+  { k: 'us10y', n: '美十债收益率', en: 'US 10Y', h: '升=紧缩/增长强；降=降息预期', sym: '^TNX' },
   { k: 'usdjpy', n: '美元兑日元', en: 'USDJPY', h: '日元急升=套息平仓信号' },
-  { k: 'xau', n: '黄金', en: 'XAU', h: '避险与真实利率的镜子' },
+  { k: 'xau', n: '黄金', en: 'XAU', h: '避险与真实利率的镜子', sym: 'GC=F' },
   { k: 'wti', n: '原油', en: 'WTI', h: '地缘冲突/需求预期体温计' },
   { k: 'us', n: '美股三大指数', en: 'S&P/Nasdaq/Dow', h: '全球风险资产定价锚' },
   { k: 'asia', n: '亚太 日经/恒生/A50', en: 'Nikkei/HSI/CSI300', h: '你开盘前已发生的故事' }
@@ -27,6 +27,7 @@ const LOCAL = { user_id: null, date: todayStr(), risk_on: '', driver: '', flow: 
 export default function MacroThermo() {
   const today = todayStr()
   const [macro, setMacro] = useState(null)
+  const [market, setMarket] = useState(null)
 
   async function load() {
     const local = { ...LOCAL, date: today }
@@ -47,6 +48,16 @@ export default function MacroThermo() {
   }
   useEffect(() => { load() }, [])
 
+  // 实时行情（与行情条同源）
+  useEffect(() => {
+    let alive = true
+    fetch('/api/market')
+      .then(r => r.json())
+      .then(j => { if (alive && j && j.quotes) setMarket(Object.fromEntries(j.quotes.map(q => [q.symbol, q]))) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [])
+
   async function saveMacro(field, value) {
     if (!macro) return
     setMacro({ ...macro, [field]: value })
@@ -65,6 +76,20 @@ export default function MacroThermo() {
     return { cls: 'mid', big: '中性 / 分化', sub: `避险 ${off} · 偏好 ${on} → 信号不清晰，等确认` }
   }
 
+  // 按实时行情自动填相关温度计（粗判，仅供参考，可手动覆盖）
+  function autoFill() {
+    if (!market || !macro) return
+    const set = (k, v) => setThermo(k, v)
+    const vix = market['^VIX'], dxy = market['DX-Y.NYB'], tnx = market['^TNX'], xau = market['GC=F']
+    if (vix && Number(vix.value) != null) {
+      const v = Number(vix.value)
+      set('vix', v > 22 ? 'off' : v < 15 ? 'on' : 'flat')
+    }
+    if (dxy) set('dxy', dxy.changePercent > 0 ? 'off' : 'on')
+    if (tnx) set('us10y', tnx.changePercent > 0 ? 'flat' : 'on')
+    if (xau) set('xau', xau.changePercent > 0 ? 'off' : 'on')
+  }
+
   if (!macro) return <div className="card tint"><p className="sub">加载中…</p></div>
 
   const v = verdict()
@@ -73,12 +98,28 @@ export default function MacroThermo() {
     <div className="card tint">
       <h3>🧭 今日盘面定性器</h3>
       <p className="sub" style={{ marginTop: -4 }}>对 8 个温度计各判「避险 / 中性 / 偏好」，自动算出今天的风险坐标。</p>
+
+      {market && (
+        <div className="mkt-autofill">
+          <button className="btn ghost sm" onClick={autoFill}>📡 按实时行情自动填入</button>
+          <span className="note" style={{ marginLeft: 6 }}>粗判仅供参考，可手动调整</span>
+        </div>
+      )}
+
       {THERMO.map(t => (
         <div className="thermo-row" key={t.k}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <span className="nm">{t.n} <span className="en">{t.en}</span></span>
             <span className="en">{t.h}</span>
           </div>
+          {market && market[t.sym] && (
+            <div className="mkt-live">
+              <span className="ml-v">{Number(market[t.sym].value).toFixed(market[t.sym].decimals ?? 2)}{market[t.sym].unit}</span>
+              <span className={market[t.sym].changePercent >= 0 ? 'qch up' : 'qch down'}>
+                {market[t.sym].changePercent >= 0 ? '▲' : '▼'} {Math.abs(market[t.sym].changePercent).toFixed(2)}%
+              </span>
+            </div>
+          )}
           <div className="seg">
             <button className={(macro.thermo_readings?.[t.k] === 'off') ? 'off' : ''} onClick={() => setThermo(t.k, 'off')}>避险</button>
             <button className={(macro.thermo_readings?.[t.k] === 'flat') ? 'flat' : ''} onClick={() => setThermo(t.k, 'flat')}>中性</button>
@@ -86,6 +127,7 @@ export default function MacroThermo() {
           </div>
         </div>
       ))}
+
       <div className={`verdict ${v.cls}`}>
         <span className="big">{v.big}</span>
         <span className="sub">{v.sub}</span>
