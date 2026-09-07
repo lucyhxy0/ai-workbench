@@ -8,6 +8,9 @@ import FavoritesSection from '../components/FavoritesSection.jsx'
 import { todayStr, prettyDate } from '../lib/date.js'
 import { api } from '../lib/api.js'
 
+// 首页固定照片（常显）。用户发图后由部署写入此处 base64；有库值则优先于默认图
+const DEFAULT_HOME_PHOTO = null
+
 // 压缩图片为 JPEG base64（限制最大边，减小存储体积）
 function compressImage(file, max = 480, quality = 0.82) {
   return new Promise((resolve, reject) => {
@@ -40,7 +43,7 @@ export default function Today() {
   const [showDetail, setShowDetail] = useState(false)
   const [adding, setAdding] = useState(false)
   const [newLabel, setNewLabel] = useState('')
-  const [petPhoto, setPetPhoto] = useState('')
+  const [homePhoto, setHomePhoto] = useState(DEFAULT_HOME_PHOTO)
   const fileRef = useRef(null)
 
   async function load() {
@@ -71,12 +74,12 @@ export default function Today() {
   }
 
   async function loadPhoto(uid) {
-    const local = localStorage.getItem('lucy_pet_' + uid) || ''
-    if (local) setPetPhoto(local)
+    const local = localStorage.getItem('lucy_home_' + uid) || ''
+    if (local) setHomePhoto(local)
     try {
-      const { data } = await supabase.from('pet_photo').select('photo').eq('user_id', uid).maybeSingle()
-      if (data?.photo) { setPetPhoto(data.photo); localStorage.setItem('lucy_pet_' + uid, data.photo) }
-    } catch { /* 忽略，localStorage 兜底 */ }
+      const { data } = await supabase.from('home_photo').select('photo').eq('user_id', uid).maybeSingle()
+      if (data?.photo) { setHomePhoto(data.photo); localStorage.setItem('lucy_home_' + uid, data.photo) }
+    } catch { /* 忽略，默认图兜底 */ }
   }
 
   useEffect(() => { load() }, [])
@@ -95,10 +98,10 @@ export default function Today() {
     const { data: { user } } = await supabase.auth.getUser()
     try {
       const b64 = await compressImage(f)
-      setPetPhoto(b64)
+      setHomePhoto(b64)
       if (user) {
-        localStorage.setItem('lucy_pet_' + user.id, b64)
-        const { error } = await supabase.from('pet_photo').upsert({ user_id: user.id, photo: b64, updated_at: new Date().toISOString() })
+        localStorage.setItem('lucy_home_' + user.id, b64)
+        const { error } = await supabase.from('home_photo').upsert({ user_id: user.id, photo: b64, updated_at: new Date().toISOString() })
         if (error) console.warn('照片云同步失败（本地已保存）：', error.message)
       }
     } catch (err) {
@@ -170,8 +173,8 @@ export default function Today() {
           <div className="date">{prettyDate().split(' ')[0]}<br />{prettyDate().split(' ')[1]}</div>
           <div className="pet">
             <div className="polaroid" onClick={pickPhoto} title="点击更换照片">
-              <div className="ph">{petPhoto ? <img src={petPhoto} alt="Tobey" /> : '🐱'}</div>
-              <div className="cap">Tobey</div>
+              <div className="ph">{homePhoto ? <img src={homePhoto} alt="今日" /> : '📷'}</div>
+              <div className="cap">今日</div>
             </div>
             <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPhoto} />
           </div>
