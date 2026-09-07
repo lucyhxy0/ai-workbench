@@ -26,6 +26,20 @@ const DEFAULT_PROFILE = {
   maintenance: '早餐含蛋白；热量1200-1600；油炸≤2/周、辣卤≤1/周、精制碳水≤3/周；每餐蔬菜；餐后慢走15min；每周量体重+体脂+腰围(重点腰围)'
 }
 
+// 编辑面板展示的字段与中文标签（顺序即展示顺序）
+const FIELDS = [
+  ['gender', '性别'], ['age', '年龄'], ['height', '身高(cm)'],
+  ['current_weight', '当前体重(kg)'], ['target_weight', '目标体重(kg)'],
+  ['target_calories', '目标热量(kcal/日)'],
+  ['conditions', '病史/诊断'], ['allergies', '过敏/不耐受'],
+  ['medications', '现服/待加用药'], ['exercise', '运动情况'],
+  ['diet_prefs', '饮食偏好'], ['others', '其他情况'],
+  ['pcos_ir', 'PCOS/IR 备注(诊断用)'], ['symptoms', '症状'],
+  ['supplements_plan', '补充剂计划'], ['checkup_plan', '检查计划'],
+  ['maintenance', '维持要点']
+]
+const SHORT = new Set(['gender', 'age', 'height', 'current_weight', 'target_weight', 'target_calories'])
+
 function scoreColor(s) {
   if (s == null) return 'var(--ink-dim)'
   if (s >= 80) return '#2e9e5b'
@@ -39,6 +53,8 @@ export default function Health() {
   const [history, setHistory] = useState([])
   const [generating, setGenerating] = useState(false)
   const [msg, setMsg] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState({})
 
   useEffect(() => { load() }, [])
 
@@ -85,6 +101,17 @@ export default function Health() {
       setMsg('✅ 本周诊断已生成')
     } catch (e) { setMsg('生成失败：' + e.message) }
     finally { setGenerating(false) }
+  }
+
+  async function saveProfile() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setMsg('未登录，无法保存'); return }
+      await supabase.from('health_profile').upsert({ user_id: user.id, profile: draft })
+      setProfile(draft)
+      setEditing(false)
+      setMsg('✅ 健康档案已保存，下次诊断即用新版')
+    } catch (e) { setMsg('保存失败：' + e.message) }
   }
 
   function renderReport(r) {
@@ -144,11 +171,38 @@ export default function Health() {
       <section className="card">
         <div className="top">
           <span className="lbl">📊 本周健康诊断</span>
-          <button className="btn sm primary" disabled={generating} onClick={generate}>{generating ? '分析中…' : '生成本周诊断'}</button>
+          <div className="row">
+            <button className="btn sm" onClick={() => { setDraft({ ...profile }); setEditing(v => !v) }}>{editing ? '收起' : '✏️ 编辑档案'}</button>
+            <button className="btn sm primary" disabled={generating} onClick={generate}>{generating ? '分析中…' : '生成本周诊断'}</button>
+          </div>
         </div>
         <div className="note">聚合最近 7 天饮食 + 你的健康档案，交给 AI 出一份周报。生成后自动保存并常显于此，直到你重新点「生成本周诊断」。</div>
         {renderReport(report)}
       </section>
+
+      {editing && (
+        <section className="card">
+          <div className="top">
+            <span className="lbl">✏️ 编辑健康档案</span>
+            <button className="btn sm" onClick={() => setDraft({ ...DEFAULT_PROFILE })}>恢复默认</button>
+          </div>
+          <div className="note">改完点「保存档案」即写入数据库，下次诊断自动用新版。仅你和诊断 AI 可见。</div>
+          <div className="edit-grid">
+            {FIELDS.map(([k, label]) => (
+              <div className="efield" key={k}>
+                <label>{label}</label>
+                {SHORT.has(k)
+                  ? <input value={draft[k] ?? ''} onChange={e => setDraft({ ...draft, [k]: e.target.value })} />
+                  : <textarea rows={3} value={draft[k] ?? ''} onChange={e => setDraft({ ...draft, [k]: e.target.value })} />}
+              </div>
+            ))}
+          </div>
+          <div className="top" style={{ marginTop: 12 }}>
+            <button className="btn sm primary" onClick={saveProfile}>保存档案</button>
+            <button className="btn sm" onClick={() => setEditing(false)}>取消</button>
+          </div>
+        </section>
+      )}
 
       {history.length > 1 && (
         <section className="card">
