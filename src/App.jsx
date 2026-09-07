@@ -10,6 +10,7 @@ import Chat from './pages/Chat.jsx'
 import Settings from './pages/Settings.jsx'
 import Pet from './pages/Pet.jsx'
 import Health from './pages/Health.jsx'
+import Expense from './pages/Expense.jsx'
 import BottomNav from './components/BottomNav.jsx'
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/chat" element={<Chat />} />
         <Route path="/pet" element={<Pet />} />
         <Route path="/health" element={<Health />} />
+        <Route path="/expense" element={<Expense />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

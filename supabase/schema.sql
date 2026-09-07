@@ -402,4 +402,23 @@ DROP TRIGGER IF EXISTS trg_fridge_updated ON public.fridge;
 CREATE TRIGGER trg_fridge_updated BEFORE UPDATE ON public.fridge
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated();
 
+-- ============================================================
+-- 2026-09-07 新增：日常记账（独立表，与宠物支出 pet_logs.amount 分离）
+-- 幂等，可重复执行
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.expense (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  date        date NOT NULL DEFAULT CURRENT_DATE,
+  amount      numeric NOT NULL,
+  category    text DEFAULT '其他',
+  note        text DEFAULT '',
+  created_at  timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_expense_user_date ON public.expense(user_id, date);
+ALTER TABLE public.expense ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own rows" ON public.expense;
+CREATE POLICY "own rows" ON public.expense
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
 

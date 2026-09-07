@@ -7,6 +7,7 @@ const items = [
   { to: '/calendar', ic: '📆', label: '日历' },
   { to: '/pet', ic: '🐱', label: '宠物' },
   { to: '/health', ic: '🩺', label: '健康' },
+  { to: '/expense', ic: '💰', label: '记账' },
   { to: '/chat', ic: '💬', label: '对话' }
 ]
 
