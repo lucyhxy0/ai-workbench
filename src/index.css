@@ -390,6 +390,7 @@ label { font-size: 13px; color: var(--ink-dim); font-weight: 600; margin-top: 8p
 .rblock { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
 .rhead { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
 .ritem { font-size: 13px; color: var(--ink); line-height: 1.5; }
+.rguide { margin-top: 12px; background: color-mix(in srgb, var(--primary) 8%, var(--paper)); border-left: 3px solid var(--primary); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 12.5px; line-height: 1.6; }
 .rsummary { margin-top: 12px; background: color-mix(in srgb, var(--primary) 10%, var(--paper)); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 13px; line-height: 1.6; }
 .hist { margin-top: 6px; }
 .hist-item { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px dashed var(--line); cursor: pointer; }

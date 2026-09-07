@@ -131,6 +131,7 @@ export default function Health() {
           </div>
         )}
 
+        {r.guide_basis && <div className="rguide">📚 依据：{r.guide_basis}</div>}
         {r.summary && <div className="rsummary">{r.summary}</div>}
       </div>
     )
