@@ -3,13 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import TopBar from '../components/TopBar.jsx'
 import MacroThermo from '../components/MacroThermo.jsx'
-import MarketQuotes from '../components/MarketQuotes.jsx'
 import FavoritesSection from '../components/FavoritesSection.jsx'
 import { todayStr, prettyDate } from '../lib/date.js'
 import { api } from '../lib/api.js'
 
-// 首页固定照片（常显）。用户发图后由部署写入此处 base64；有库值则优先于默认图
-const DEFAULT_HOME_PHOTO = null
+// 首页固定照片（常显）。部署时写入 public/home-photo.jpg；用户也可点击更换（存库覆盖）
+const DEFAULT_HOME_PHOTO = '/home-photo.jpg'
 
 // 压缩图片为 JPEG base64（限制最大边，减小存储体积）
 function compressImage(file, max = 480, quality = 0.82) {
@@ -149,9 +148,10 @@ export default function Today() {
 
   const vitFields = [
     { key: 'vd', label: '维D', am: 'vitamin_d_am', pm: 'vitamin_d_pm' },
+    { key: 'vb', label: '维B', am: 'vitamin_b_am', pm: 'vitamin_b_pm' },
     { key: 'ino', label: '肌醇', am: 'inositol_am', pm: 'inositol_pm' }
   ]
-  const vitCols = ['vitamin_d_am', 'vitamin_d_pm', 'inositol_am', 'inositol_pm']
+  const vitCols = ['vitamin_d_am', 'vitamin_d_pm', 'vitamin_b_am', 'vitamin_b_pm', 'inositol_am', 'inositol_pm']
   const vitCount = diet ? vitCols.filter(c => diet[c]).length : 0
   const reviewDone = !!(trading && (trading.review || trading.operations))
   const customMapped = customItems.map(c => ({
@@ -287,10 +287,7 @@ export default function Today() {
           )}
         </div>
 
-        {/* 实时行情（金价 / 美债 / 美元 / VIX） */}
-        <MarketQuotes />
-
-        {/* 今日盘面定性器（与财经日报同框） */}
+        {/* 今日盘面定性器（已内置实时行情） */}
         <MacroThermo />
 
         {/* 操盘提醒 */}
