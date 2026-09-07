@@ -363,4 +363,43 @@ DROP TRIGGER IF EXISTS trg_health_profile_updated ON public.health_profile;
 CREATE TRIGGER trg_health_profile_updated BEFORE UPDATE ON public.health_profile
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated();
 
+-- ============================================================
+-- 2026-09-07 新增：首页常显照片（替代 pet_photo）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.home_photo (
+  user_id    uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  photo      text,                    -- 压缩后的 JPEG base64
+  updated_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.home_photo ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own rows" ON public.home_photo;
+CREATE POLICY "own rows" ON public.home_photo
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP TRIGGER IF EXISTS trg_home_photo_updated ON public.home_photo;
+CREATE TRIGGER trg_home_photo_updated BEFORE UPDATE ON public.home_photo
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated();
+
+-- ============================================================
+-- 2026-09-07 新增：冰箱库存（对话管理）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.fridge (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name        text NOT NULL,
+  quantity    numeric DEFAULT 1,
+  unit        text DEFAULT '个',
+  category    text DEFAULT '其他',
+  expiry      date,
+  created_at  timestamptz DEFAULT now(),
+  updated_at  timestamptz DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_fridge_user_name ON public.fridge(user_id, name);
+ALTER TABLE public.fridge ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own rows" ON public.fridge;
+CREATE POLICY "own rows" ON public.fridge
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP TRIGGER IF EXISTS trg_fridge_updated ON public.fridge;
+CREATE TRIGGER trg_fridge_updated BEFORE UPDATE ON public.fridge
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated();
+
 
