@@ -10,59 +10,73 @@ function client(token) {
   return createClient(URL, ANON, { global: { headers: { Authorization: `Bearer ${token}` } } })
 }
 
-async function classifyIntent(message) {
-  if (!DEEPSEEK || DEEPSEEK.includes('your-')) {
-    return { intent: 'chat' }
-  }
+// 中文数字 → 阿拉伯
+const CN_NUM = { '一':1,'两':2,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10 }
+function parseQtyUnit(text) {
+  const m = text.match(/(\d+(?:\.\d+)?)\s*(个|盒|袋|公斤|kg|斤|瓶|罐|包|根|颗|只|块|枚)?/i)
+  if (m) return { quantity: parseFloat(m[1]), unit: m[2] || '' }
+  const cm = text.match(/(一|两|二|三|四|五|六|七|八|九|十)\s*(个|盒|袋|公斤|kg|斤|瓶|罐|包|根|颗|只|块|枚)?/)
+  if (cm) return { quantity: CN_NUM[cm[1]] || 1, unit: cm[2] || '' }
+  return { quantity: null, unit: '' }
+}
+
+// 规则意图：不依赖模型，避免冰箱语句被误判为闲聊
+function ruleIntent(message) {
+  const t = message
+  if (/(吃了|用了|消耗|去掉|扔|丢|删|没(了|有))/).test(t)) return 'remove'
+  if (/(改|更新|设置|保质期)/).test(t)) return 'update'
+  if (/(买了|加了|进货|采购|添|补货|补)/).test(t)) return 'add'
+  if (/(冰箱|库存)/).test(t)) return 'query'
+  return 'chat'
+}
+
+// 正则兜底抽取字段
+function regexExtract(message) {
+  const { quantity, unit } = parseQtyUnit(message)
+  let name = ''
+  let m = message.match(/(?:买了|加了|进货|采购|添|补|吃了|用了|消耗|去掉|扔|丢|删)\s*([\u4e00-\u9fa5A-Za-z0-9]+)/)
+  if (!m) m = message.match(/冰箱(?:里|中|内)?(?:还有|有|剩)?\s*([\u4e00-\u9fa5A-Za-z0-9]+)/)
+  if (m) name = m[1].replace(/(个|盒|袋|公斤|kg|斤|瓶|罐|包|根|颗|只|块|枚|啥|什么|哪些)$/i, '').trim()
+  return { name, quantity, unit, category: '', expiry: '' }
+}
+
+// 字段抽取：优先 DeepSeek，失败用正则兜底
+async function extractFields(message) {
+  const base = regexExtract(message)
+  if (!DEEPSEEK || DEEPSEEK.includes('your-')) return base
   try {
     const r = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${DEEPSEEK}` },
       body: JSON.stringify({
-        model: 'deepseek-chat',
-        temperature: 0,
+        model: 'deepseek-chat', temperature: 0,
         response_format: { type: 'json_object' },
         messages: [
-          {
-            role: 'system',
-            content:
-              '你是冰箱库存意图识别器。请分析用户输入，只返回 JSON，不要任何解释。\n' +
-              'JSON 字段：\n' +
-              '  intent: "add" | "remove" | "update" | "query" | "chat"\n' +
-              '  name: 物品名称（如有，尽量用标准名，如"鸡蛋"）\n' +
-              '  quantity: 数字（操作的数量，默认 1；删除不指定数量则全部删除）\n' +
-              '  unit: 单位，如"个/盒/袋/kg/瓶/罐/包/斤"\n' +
-              '  category: 分类，如"蔬菜/水果/肉/蛋/奶/调料/饮品/其他"\n' +
-              '  expiry: 保质期，格式 YYYY-MM-DD（仅 update/add 且用户提到时）\n' +
-              '  reply: 一句自然语言回复（用于直接返回给用户）\n' +
-              '规则：\n' +
-              '1. "买了/加了/进货/有" → add\n' +
-              '2. "吃了/用了/消耗/去掉/扔/删" → remove\n' +
-              '3. "改/更新/设置/保质期/数量" → update\n' +
-              '4. "还有/有什么/列表/查/剩多少" → query\n' +
-              '5. 与冰箱库存无关的普通对话 → chat\n' +
-              '6. 数量和单位要从自然语言中提取，如"两盒鸡蛋" → quantity=2, unit=盒\n' +
-              '7. 如果用户说"买了鸡蛋"没数量，quantity=1, unit=个'
-          },
+          { role: 'system', content: '抽取冰箱库存语句的字段，只返回 JSON：name(物品名),quantity(数字),unit(单位),category(分类),expiry(YYYY-MM-DD)。不含则不填。' },
           { role: 'user', content: message }
         ]
       })
     })
     const j = await r.json()
-    const c = j.choices?.[0]?.message?.content || '{}'
-    const o = JSON.parse(c)
+    const o = JSON.parse(j?.choices?.[0]?.message?.content || '{}')
     return {
-      intent: ['add', 'remove', 'update', 'query'].includes(o.intent) ? o.intent : 'chat',
-      name: o.name || '',
-      quantity: o.quantity == null ? null : Number(o.quantity),
-      unit: o.unit || '',
-      category: o.category || '',
-      expiry: o.expiry || '',
-      reply: o.reply || ''
+      name: o.name || base.name,
+      quantity: o.quantity != null ? Number(o.quantity) : base.quantity,
+      unit: o.unit || base.unit,
+      category: o.category || base.category,
+      expiry: o.expiry || base.expiry
     }
   } catch {
-    return { intent: 'chat' }
+    return base
   }
+}
+
+// 意图识别：规则优先，DeepSeek 只抽字段
+async function classifyIntent(message) {
+  const intent = ruleIntent(message)
+  if (intent === 'chat') return { intent: 'chat' }
+  const f = await extractFields(message)
+  return { intent, ...f }
 }
 
 function normalizeName(name) {

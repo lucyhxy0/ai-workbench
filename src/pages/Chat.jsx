@@ -53,8 +53,13 @@ export default function Chat() {
         setBusy(false)
         return
       }
-    } catch {
-      // 意图识别失败不影响正常对话
+    } catch (e) {
+      // 未登录等鉴权错误明确提示；其余（网络抖动）回落闲聊兜底
+      if (e?.message?.includes('未授权') || e?.message?.includes('登录')) {
+        setMsgs(m => [...m, userMsg, { role: 'assistant', content: '⚠️ 冰箱功能需要先登录，请先在 App 里登录账号再试。' }])
+        setBusy(false)
+        return
+      }
     }
 
     setMsgs(m => [...m, userMsg, { role: 'assistant', content: '' }])
