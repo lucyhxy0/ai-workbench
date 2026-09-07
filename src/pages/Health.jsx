@@ -145,7 +145,7 @@ export default function Health() {
           <span className="lbl">📊 本周健康诊断</span>
           <button className="btn sm primary" disabled={generating} onClick={generate}>{generating ? '分析中…' : '生成本周诊断'}</button>
         </div>
-        <div className="note">聚合最近 7 天饮食 + 你的健康档案，交给 AI 出一份周报。</div>
+        <div className="note">聚合最近 7 天饮食 + 你的健康档案，交给 AI 出一份周报。生成后自动保存并常显于此，直到你重新点「生成本周诊断」。</div>
         {renderReport(report)}
       </section>
 
