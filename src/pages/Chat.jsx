@@ -37,6 +37,26 @@ export default function Chat() {
     if (!cur) { await newSession(); return }
     const text = input.trim(); setInput(''); setBusy(true)
     const userMsg = { role: 'user', content: text }
+
+    // 先尝试冰箱库存意图；命中则直接操作数据库并返回结果
+    try {
+      const fridge = await api.fridgeIntent(text)
+      if (fridge?.handled) {
+        const reply = fridge.reply || '✅ 已处理'
+        setMsgs(m => [...m, userMsg, { role: 'assistant', content: reply }])
+        const { data: { user } } = await supabase.auth.getUser()
+        await supabase.from('chat_messages').insert([
+          { user_id: user.id, session_id: cur, role: 'user', content: text },
+          { user_id: user.id, session_id: cur, role: 'assistant', content: reply }
+        ])
+        if (msgs.length === 0) await supabase.from('chat_sessions').update({ title: text.slice(0, 20) }).eq('id', cur)
+        setBusy(false)
+        return
+      }
+    } catch {
+      // 意图识别失败不影响正常对话
+    }
+
     setMsgs(m => [...m, userMsg, { role: 'assistant', content: '' }])
     await supabase.from('chat_messages').insert({ user_id: (await supabase.auth.getUser()).data.user.id, session_id: cur, role: 'user', content: text })
 
