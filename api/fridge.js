@@ -20,24 +20,38 @@ function parseQtyUnit(text) {
   return { quantity: null, unit: '' }
 }
 
-// 规则意图：不依赖模型，避免冰箱语句被误判为闲聊
+// 规则意图：不依赖模型，避免冰箱语句被误判为闲聊（纯字符串，避开正则解析问题）
 function ruleIntent(message) {
   const t = message
-  if (/(吃了|用了|消耗|去掉|扔|丢|删|没(了|有))/).test(t)) return 'remove'
-  if (/(改|更新|设置|保质期)/).test(t)) return 'update'
-  if (/(买了|加了|进货|采购|添|补货|补)/).test(t)) return 'add'
-  if (/(冰箱|库存)/).test(t)) return 'query'
+  const has = (...kw) => kw.some(k => t.includes(k))
+  if (has('吃了', '用了', '消耗', '去掉', '扔', '丢', '删', '没了', '没有')) return 'remove'
+  if (has('改', '更新', '设置', '保质期')) return 'update'
+  if (has('买了', '加了', '进货', '采购', '添', '补货', '补')) return 'add'
+  if (has('冰箱', '库存')) return 'query'
   return 'chat'
 }
 
-// 正则兜底抽取字段
+// 字段抽取兜底（纯字符串，避开正则解析问题）
 function regexExtract(message) {
   const { quantity, unit } = parseQtyUnit(message)
   let name = ''
-  let m = message.match(/(?:买了|加了|进货|采购|添|补|吃了|用了|消耗|去掉|扔|丢|删)\s*([\u4e00-\u9fa5A-Za-z0-9]+)/)
-  if (!m) m = message.match(/冰箱(?:里|中|内)?(?:还有|有|剩)?\s*([\u4e00-\u9fa5A-Za-z0-9]+)/)
-  if (m) name = m[1].replace(/(个|盒|袋|公斤|kg|斤|瓶|罐|包|根|颗|只|块|枚|啥|什么|哪些)$/i, '').trim()
-  return { name, quantity, unit, category: '', expiry: '' }
+  const verbs = ['买了', '加了', '进货', '采购', '添', '补', '吃了', '用了', '消耗', '去掉', '扔', '丢', '删']
+  for (const v of verbs) {
+    const idx = message.indexOf(v)
+    if (idx >= 0) { name = message.slice(idx + v.length).trim(); break }
+  }
+  if (!name) {
+    const idx = message.indexOf('冰箱')
+    if (idx >= 0) {
+      name = message.slice(idx + 2)
+      for (const p of ['里', '中', '内']) if (name.startsWith(p)) name = name.slice(p.length)
+      for (const p of ['还有', '有', '剩']) if (name.startsWith(p)) name = name.slice(p.length)
+    }
+  }
+  name = name.trim()
+  const tailUnits = ['公斤', 'kg', '斤', '个', '盒', '袋', '瓶', '罐', '包', '根', '颗', '只', '块', '枚', '啥', '什么', '哪些']
+  for (const u of tailUnits) if (name.endsWith(u)) name = name.slice(0, name.length - u.length)
+  return { name: name.trim(), quantity, unit, category: '', expiry: '' }
 }
 
 // 字段抽取：优先 DeepSeek，失败用正则兜底
@@ -199,8 +213,6 @@ export default async function handler(req, res) {
     else if (intent.intent === 'query') result = await handleQuery(sb, user.id, intent)
     else result = { handled: false }
 
-    // 如果 AI 已经给了回复，优先用 AI 的；否则用后端生成的
-    if (intent.reply && result.handled) result.reply = intent.reply
     res.json(result)
   } catch (e) {
     res.status(500).json({ error: e?.message || '冰箱库存操作失败' })
