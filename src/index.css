@@ -406,3 +406,6 @@ label { font-size: 13px; color: var(--ink-dim); font-weight: 600; margin-top: 8p
 .quote .qch { font-size: 12px; font-weight: 600; }
 .quote .qch.up { color: #e23c3c; }
 .quote .qch.down { color: #1a9d5a; }
+.mkt-autofill { display: flex; align-items: center; margin: 6px 0 8px; flex-wrap: wrap; }
+.mkt-live { display: flex; align-items: center; gap: 8px; margin: 4px 0 2px; font-size: 13px; }
+.mkt-live .ml-v { font-weight: 700; color: var(--ink); }
