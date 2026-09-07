@@ -189,6 +189,21 @@ export default function Trading() {
           <p className="sub" style={{ marginTop: 4 }}>用法：盘前扫「8 温度计」→ 用「事件→资产表」定位驱动 → 跑「3 问自测」。</p>
         </div>
 
+        {/* ===== 量化学习入口 ===== */}
+        <div className="card tint">
+          <h3>🎓 量化学习</h3>
+          <p className="sub" style={{ marginTop: -4 }}>AI 量化交易自学资料，配合操盘页一起用。</p>
+          <a
+            className="btn"
+            style={{ display: 'inline-block', marginTop: 8, textDecoration: 'none' }}
+            href="https://workbuddy.link/p/hBQyGgrnb34blZuVwjS3ak?ext2=copy_link"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            🔗 打开量化学习资料
+          </a>
+        </div>
+
         {/* ===== 3 问自测（§三） ===== */}
         <div className="card tint">
           <h3>🧭 3 问自测</h3>
