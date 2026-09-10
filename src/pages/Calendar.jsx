@@ -40,20 +40,22 @@ export default function CalendarPage() {
 
   useEffect(() => { load() }, [year, month])
 
-  // 经济日历（公开数据，不依赖登录）
+  // 经济日历（公开数据，不依赖登录）—— 覆盖当前可见整月
   useEffect(() => {
     let alive = true
-    fetch('/api/econ-calendar?days=14')
+    const y = year, m = month
+    const from = `${y}-${String(m + 1).padStart(2, '0')}-01`
+    const to = m === 11 ? `${y + 1}-01-01` : `${y}-${String(m + 2).padStart(2, '0')}-01`
+    fetch(`/api/econ-calendar?from=${from}&to=${to}`)
       .then(r => r.ok ? r.json() : { events: [] })
       .then(j => { if (alive) { setEcon(j.events || []); setEconLoading(false) } })
       .catch(() => { if (alive) { setEcon([]); setEconLoading(false) } })
     return () => { alive = false }
-  }, [])
+  }, [year, month])
 
   // 经济事件按日期分组
   const econByDate = {}
   econ.forEach(e => { (econByDate[e.date] ||= []).push(e) })
-  const econDates = Object.keys(econByDate).sort()
 
   function pick(d) {
     if (!d) return
@@ -111,6 +113,21 @@ export default function CalendarPage() {
             ))}
           </div>
         </div>
+          {econByDate[sel] && econByDate[sel].length > 0 && (
+            <div className="econ-in-day">
+              <div className="mini-head"><span className="star">📈</span> 今日经济事件</div>
+              {econByDate[sel].map((e, i) => (
+                <div key={i} className="econ-row">
+                  <span className={`imp imp-${e.impact || ''}`}>●</span>
+                  <span className="econ-c">{e.countryLabel || e.country}</span>
+                  <span className="econ-e">{e.event}{e.major && <span className="econ-star" title="中美重大日程">★</span>}</span>
+                  {e.time && <span className="econ-t">{e.time}</span>}
+                  {e.estimate != null && <span className="econ-x">预期 {e.estimate}</span>}
+                  {e.previous != null && <span className="econ-p">前值 {e.previous}</span>}
+                </div>
+              ))}
+            </div>
+          )}
 
         {/* 月历 */}
         <div className="card tint">
@@ -127,44 +144,19 @@ export default function CalendarPage() {
               if (!d) return <div key={i} />
               const s = todayStr(d)
               const evs = allEvents[s] || []
+              const ecs = econByDate[s] || []
               const hasWarn = evs.some(e => e.importance >= 2)
               return (
                 <div key={s} className={`cal-cell ${s === sel ? 'sel' : ''} ${s === todayStr() ? 'today' : ''}`} onClick={() => pick(d)}>
                   <span>{d.getDate()}</span>
-                  {evs.length > 0 && <span className={`ev ${hasWarn ? 'warn' : ''}`} />}
+                  <div className="cell-dots">
+                    {evs.map((e, k) => <span key={'u' + k} className={`ev ${e.importance >= 2 ? 'warn' : ''}`} />)}
+                    {ecs.map((e, k) => <span key={'e' + k} className={`ev econ imp-${e.impact || ''}`} title={`${e.countryLabel || e.country} ${e.event}`} />)}
+                  </div>
                 </div>
               )
             })}
           </div>
-        </div>
-
-        {/* 经济日历（中美重大日程 + Finnhub） */}
-        <div className="card tint theme-trade">
-          <div className="mini-head"><span className="star">📈</span> 经济日历 · 未来 14 天</div>
-          {econLoading && <p className="sub">加载中…</p>}
-          {!econLoading && econDates.length === 0 && <p className="sub">未来两周暂无经济事件。</p>}
-          {econDates.map(d => (
-            <div key={d} style={{ marginTop: 8 }}>
-              <div className="sub" style={{ fontWeight: 700, opacity: 0.8 }}>{d}</div>
-              {econByDate[d].map((e, i) => (
-                <div key={i} className="econ-row">
-                  <span className={`imp imp-${e.impact}`} title={e.impact || '未知'}>●</span>
-                  <span className="econ-c">{e.countryLabel || e.country}</span>
-                  <span className="econ-e">{e.event}{e.major && <span className="econ-star" title="中美重大日程">★</span>}</span>
-                  {e.time && <span className="econ-t">{e.time}</span>}
-                  {e.estimate != null && <span className="econ-x">预期 {e.estimate}</span>}
-                  {e.previous != null && <span className="econ-p">前值 {e.previous}</span>}
-                </div>
-              ))}
-            </div>
-          ))}
-          <div className="econ-legend">
-            <span><i className="imp imp-high" /> 重大</span>
-            <span><i className="imp imp-medium" /> 中等</span>
-            <span><i className="imp imp-low" /> 一般</span>
-            <span>★ = 中美重大日程</span>
-          </div>
-          <p className="sub" style={{ marginTop: 6, fontSize: 11, opacity: 0.6 }}>数据：内置中美重大日程（FOMC / CPI / PPI / 非农 / PMI / LPR / GDP 等）＋ Finnhub 全球事件</p>
         </div>
 
         {/* 添加 / 编辑事件 */}

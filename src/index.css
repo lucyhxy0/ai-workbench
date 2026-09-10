@@ -216,6 +216,13 @@ label { font-size: 13px; color: var(--ink-dim); font-weight: 600; margin-top: 8p
 .cal-cell.today { box-shadow: inset 0 0 0 2px var(--primary); }
 .cal-cell .ev { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); margin-top: 3px; }
 .cal-cell .ev.warn { background: var(--coral); }
+.cal-cell .cell-dots { display: flex; gap: 2px; margin-top: 3px; flex-wrap: wrap; justify-content: center; max-width: 100%; padding: 0 2px; }
+.cal-cell .cell-dots .ev { margin-top: 0; }
+.cal-cell .ev.econ { width: 5px; height: 5px; }
+.cal-cell .ev.econ.imp-high { background: var(--coral); }
+.cal-cell .ev.econ.imp-medium { background: #d9a400; }
+.cal-cell .ev.econ.imp-low, .cal-cell .ev.econ.imp- { background: #9aa0a6; }
+.econ-in-day { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
 
 /* =========================================================
    签名组件：便签 / 拍立得 / 状态条 / 财经日报 / 打卡条 / 问候
