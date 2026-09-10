@@ -17,6 +17,8 @@ export default function CalendarPage() {
   const [time, setTime] = useState('')
   const [importance, setImportance] = useState(1)
   const [editing, setEditing] = useState(null)
+  const [econ, setEcon] = useState([])
+  const [econLoading, setEconLoading] = useState(true)
 
   async function load() {
     const { data: { user } } = await supabase.auth.getUser()
@@ -37,6 +39,21 @@ export default function CalendarPage() {
   }
 
   useEffect(() => { load() }, [year, month])
+
+  // 经济日历（公开数据，不依赖登录）
+  useEffect(() => {
+    let alive = true
+    fetch('/api/econ-calendar?days=14')
+      .then(r => r.ok ? r.json() : { events: [] })
+      .then(j => { if (alive) { setEcon(j.events || []); setEconLoading(false) } })
+      .catch(() => { if (alive) { setEcon([]); setEconLoading(false) } })
+    return () => { alive = false }
+  }, [])
+
+  // 经济事件按日期分组
+  const econByDate = {}
+  econ.forEach(e => { (econByDate[e.date] ||= []).push(e) })
+  const econDates = Object.keys(econByDate).sort()
 
   function pick(d) {
     if (!d) return
@@ -119,6 +136,28 @@ export default function CalendarPage() {
               )
             })}
           </div>
+        </div>
+
+        {/* 经济日历（公开宏观事件） */}
+        <div className="card tint theme-trade">
+          <div className="mini-head"><span className="star">📈</span> 经济日历 · 未来 14 天</div>
+          {econLoading && <p className="sub">加载中…</p>}
+          {!econLoading && econDates.length === 0 && <p className="sub">未来两周无重大经济事件。</p>}
+          {econDates.map(d => (
+            <div key={d} style={{ marginTop: 8 }}>
+              <div className="sub" style={{ fontWeight: 700, opacity: 0.8 }}>{d}</div>
+              {econByDate[d].map((e, i) => (
+                <div key={i} className="econ-row">
+                  <span className={`imp imp-${e.impact}`} title={e.impact || '未知'}>●</span>
+                  <span className="econ-c">{e.country}</span>
+                  <span className="econ-e">{e.event}</span>
+                  {e.estimate != null && <span className="econ-x">预期 {e.estimate}</span>}
+                  {e.previous != null && <span className="econ-p">前值 {e.previous}</span>}
+                </div>
+              ))}
+            </div>
+          ))}
+          <p className="sub" style={{ marginTop: 8, fontSize: 11, opacity: 0.6 }}>数据来源：Finnhub 经济日历（公开宏观事件）</p>
         </div>
 
         {/* 添加 / 编辑事件 */}

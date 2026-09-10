@@ -187,6 +187,18 @@ label { font-size: 13px; color: var(--ink-dim); font-weight: 600; margin-top: 8p
 .mini-head { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: var(--ink); margin: 4px 0 10px; }
 .mini-head .star { color: var(--primary); }
 
+/* ---------- 经济日历 ---------- */
+.econ-today { margin: 10px 0 4px; }
+.econ-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 0; font-size: 13px; border-top: 1px dashed var(--line); }
+.econ-row:first-of-type { border-top: none; }
+.imp { font-size: 10px; line-height: 1; }
+.imp-high { color: var(--coral); }
+.imp-medium { color: var(--lemon); }
+.imp-low, .imp- { color: var(--ink-dim); }
+.econ-c { font-weight: 700; }
+.econ-e { flex: 1; min-width: 80px; }
+.econ-x, .econ-p { font-size: 11px; color: var(--ink-dim); }
+
 /* ---------- 对话气泡 ---------- */
 .bubble { max-width: 85%; padding: 11px 14px; border-radius: 10px; margin-bottom: 10px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; box-shadow: var(--shadow-soft); }
 .bubble.user { background: linear-gradient(135deg, var(--mint), #bfead9); color: #20493c; margin-left: auto; border-bottom-right-radius: 3px; }

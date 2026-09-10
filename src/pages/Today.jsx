@@ -44,6 +44,7 @@ export default function Today() {
   const [newLabel, setNewLabel] = useState('')
   const [homePhoto, setHomePhoto] = useState(DEFAULT_HOME_PHOTO)
   const fileRef = useRef(null)
+  const [todayEcon, setTodayEcon] = useState([])
 
   async function load() {
     const { data: { user } } = await supabase.auth.getUser()
@@ -82,6 +83,16 @@ export default function Today() {
   }
 
   useEffect(() => { load() }, [])
+
+  // 今日经济事件（公开数据，不依赖登录）
+  useEffect(() => {
+    let alive = true
+    fetch(`/api/econ-calendar?from=${today}&to=${today}`)
+      .then(r => r.ok ? r.json() : { events: [] })
+      .then(j => { if (alive) setTodayEcon((j.events || []).filter(e => e.impact === 'high' || e.impact === 'medium')) })
+      .catch(() => { if (alive) setTodayEcon([]) })
+    return () => { alive = false }
+  }, [today])
 
   async function toggleVit(col) {
     if (!diet) return
@@ -211,6 +222,20 @@ export default function Today() {
             <div className="t">Lucy Finance Daily</div>
             <div className="d">{today} 更新</div>
           </div>
+          {todayEcon.length > 0 && (
+            <div className="econ-today">
+              <div className="mini-head"><span className="star">📅</span> 今日重要经济事件</div>
+              {todayEcon.map((e, i) => (
+                <div key={i} className="econ-row">
+                  <span className={`imp imp-${e.impact}`} title={e.impact}>●</span>
+                  <span className="econ-c">{e.country}</span>
+                  <span className="econ-e">{e.event}</span>
+                  {e.estimate != null && <span className="econ-x">预期 {e.estimate}</span>}
+                  {e.time && <span className="econ-p">{e.time}</span>}
+                </div>
+              ))}
+            </div>
+          )}
           {briefing ? (
             <>
               <div className="fin-cols">
