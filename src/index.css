@@ -198,6 +198,11 @@ label { font-size: 13px; color: var(--ink-dim); font-weight: 600; margin-top: 8p
 .econ-c { font-weight: 700; }
 .econ-e { flex: 1; min-width: 80px; }
 .econ-x, .econ-p { font-size: 11px; color: var(--ink-dim); }
+.econ-t { font-size: 11px; color: var(--sky-deep, #3b6ea5); background: color-mix(in srgb, var(--sky) 55%, white); border-radius: 6px; padding: 0 5px; }
+.econ-star { color: var(--coral); font-size: 11px; margin-left: 3px; }
+.econ-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; font-size: 11px; color: var(--ink-dim); align-items: center; }
+.econ-legend span { display: inline-flex; align-items: center; gap: 3px; }
+.econ-legend i.imp { font-style: normal; }
 
 /* ---------- 对话气泡 ---------- */
 .bubble { max-width: 85%; padding: 11px 14px; border-radius: 10px; margin-bottom: 10px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; box-shadow: var(--shadow-soft); }

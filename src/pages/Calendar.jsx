@@ -138,26 +138,33 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        {/* 经济日历（公开宏观事件） */}
+        {/* 经济日历（中美重大日程 + Finnhub） */}
         <div className="card tint theme-trade">
           <div className="mini-head"><span className="star">📈</span> 经济日历 · 未来 14 天</div>
           {econLoading && <p className="sub">加载中…</p>}
-          {!econLoading && econDates.length === 0 && <p className="sub">未来两周无重大经济事件。</p>}
+          {!econLoading && econDates.length === 0 && <p className="sub">未来两周暂无经济事件。</p>}
           {econDates.map(d => (
             <div key={d} style={{ marginTop: 8 }}>
               <div className="sub" style={{ fontWeight: 700, opacity: 0.8 }}>{d}</div>
               {econByDate[d].map((e, i) => (
                 <div key={i} className="econ-row">
                   <span className={`imp imp-${e.impact}`} title={e.impact || '未知'}>●</span>
-                  <span className="econ-c">{e.country}</span>
-                  <span className="econ-e">{e.event}</span>
+                  <span className="econ-c">{e.countryLabel || e.country}</span>
+                  <span className="econ-e">{e.event}{e.major && <span className="econ-star" title="中美重大日程">★</span>}</span>
+                  {e.time && <span className="econ-t">{e.time}</span>}
                   {e.estimate != null && <span className="econ-x">预期 {e.estimate}</span>}
                   {e.previous != null && <span className="econ-p">前值 {e.previous}</span>}
                 </div>
               ))}
             </div>
           ))}
-          <p className="sub" style={{ marginTop: 8, fontSize: 11, opacity: 0.6 }}>数据来源：Finnhub 经济日历（公开宏观事件）</p>
+          <div className="econ-legend">
+            <span><i className="imp imp-high" /> 重大</span>
+            <span><i className="imp imp-medium" /> 中等</span>
+            <span><i className="imp imp-low" /> 一般</span>
+            <span>★ = 中美重大日程</span>
+          </div>
+          <p className="sub" style={{ marginTop: 6, fontSize: 11, opacity: 0.6 }}>数据：内置中美重大日程（FOMC / CPI / PPI / 非农 / PMI / LPR / GDP 等）＋ Finnhub 全球事件</p>
         </div>
 
         {/* 添加 / 编辑事件 */}

@@ -89,7 +89,7 @@ export default function Today() {
     let alive = true
     fetch(`/api/econ-calendar?from=${today}&to=${today}`)
       .then(r => r.ok ? r.json() : { events: [] })
-      .then(j => { if (alive) setTodayEcon((j.events || []).filter(e => e.impact === 'high' || e.impact === 'medium')) })
+      .then(j => { if (alive) setTodayEcon(j.events || []) })
       .catch(() => { if (alive) setTodayEcon([]) })
     return () => { alive = false }
   }, [today])
@@ -228,10 +228,11 @@ export default function Today() {
               {todayEcon.map((e, i) => (
                 <div key={i} className="econ-row">
                   <span className={`imp imp-${e.impact}`} title={e.impact}>●</span>
-                  <span className="econ-c">{e.country}</span>
-                  <span className="econ-e">{e.event}</span>
+                  <span className="econ-c">{e.countryLabel || e.country}</span>
+                  <span className="econ-e">{e.event}{e.major && <span className="econ-star" title="中美重大日程">★</span>}</span>
+                  {e.time && <span className="econ-t">{e.time}</span>}
                   {e.estimate != null && <span className="econ-x">预期 {e.estimate}</span>}
-                  {e.time && <span className="econ-p">{e.time}</span>}
+                  {e.previous != null && <span className="econ-p">前值 {e.previous}</span>}
                 </div>
               ))}
             </div>
