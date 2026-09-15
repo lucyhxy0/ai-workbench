@@ -60,6 +60,8 @@ export default function Today() {
     ])
 
     setBriefing(b)
+    // 当天还没有晨报时，静默自动生成一次（实时拉取，不用手动点）
+    if (!b) { refreshBriefing(true).catch(() => {}) }
     setEvents(ev || [])
     setDueTasks(mt || [])
     await loadPhoto(uid)
@@ -140,7 +142,7 @@ export default function Today() {
     await supabase.from('checkin_items').delete().eq('id', id)
   }
 
-  async function generateBriefing() {
+  async function refreshBriefing(silent) {
     setGenBusy(true)
     try {
       const result = await api.generateBriefing(today)
@@ -151,11 +153,13 @@ export default function Today() {
       ).select().single()
       setBriefing(saved)
     } catch (e) {
-      alert('生成失败：' + e.message)
+      if (!silent) alert('生成失败：' + e.message)
     } finally {
       setGenBusy(false)
     }
   }
+  // 手动点「生成」按钮（首次为空时显示）走非静默
+  function generateBriefing() { return refreshBriefing(false) }
 
   const vitFields = [
     { key: 'vd', label: '维D', am: 'vitamin_d_am', pm: 'vitamin_d_pm' },
@@ -256,6 +260,7 @@ export default function Today() {
               <div className="sticky" style={{ marginTop: 10 }}>
                 <b>AI 今日痛点：</b>{briefing.summary || '—'}
               </div>
+              <button className="btn ghost sm" style={{ marginTop: 10, marginRight: 8 }} disabled={genBusy} onClick={() => refreshBriefing(false)}>{genBusy ? '刷新中…' : '🔄 刷新'}</button>
               <button className="btn ghost sm" style={{ marginTop: 10 }} onClick={() => setShowDetail(s => !s)}>{showDetail ? '收起明细' : '查看完整晨报'}</button>
               {showDetail && (
                 <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.6 }}>
