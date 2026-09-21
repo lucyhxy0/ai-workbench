@@ -9,6 +9,31 @@ function dayKcal(r) {
   return (Number(c.breakfast) || 0) + (Number(c.lunch) || 0) + (Number(c.dinner) || 0) + (Number(c.afternoon_tea) || 0) + (Number(c.drinks) || 0)
 }
 
+// 上周日期范围：上周一 ~ 上周日（相对"今天"）
+function lastWeekRange() {
+  const t = new Date()
+  const day = t.getDay() // 0=周日
+  const offsetToMon = (day === 0 ? -6 : 1 - day) // 本周一相对今天的偏移天数
+  const thisMon = new Date(t)
+  thisMon.setDate(t.getDate() + offsetToMon)
+  const lastMon = new Date(thisMon)
+  lastMon.setDate(thisMon.getDate() - 7)
+  const lastSun = new Date(thisMon)
+  lastSun.setDate(thisMon.getDate() - 1)
+  const fmt = d => todayStr(d)
+  return { start: fmt(lastMon), end: fmt(lastSun) }
+}
+
+// 解析目标热量（"1200-1600"→取中值 1400；单值→原值）
+function parseTargetCalories(v) {
+  if (!v) return null
+  const nums = String(v).match(/\d+/g)
+  if (!nums || nums.length === 0) return null
+  const arr = nums.map(Number)
+  if (arr.length >= 2) return Math.round((arr[0] + arr[1]) / 2)
+  return arr[0]
+}
+
 // 本周卡路里趋势（缩短）
 function WeeklyChart({ rows }) {
   const last7 = [...(rows || [])].reverse().slice(-7)
@@ -32,6 +57,38 @@ function WeeklyChart({ rows }) {
           <text x={p[0]} y={H - 3} fontSize="8" textAnchor="middle" fill="var(--text)">{String(p[3]).slice(5)}</text>
         </g>
       ))}
+    </svg>
+  )
+}
+
+// 上周卡路里曲线（周一~周日，可选目标参考线）
+function LastWeekChart({ rows, target }) {
+  if (!rows || rows.length === 0) return <p className="sub">上周暂无饮食记录</p>
+  const vals = rows.map(dayKcal)
+  const W = 300, H = 132, padX = 28, padY = 18
+  const max = Math.max(...vals, target || 0, 100)
+  const n = vals.length
+  const xs = i => padX + (W - padX * 2) * (n === 1 ? 0.5 : i / (n - 1))
+  const ys = v => H - padY - (v / max) * (H - padY * 2)
+  const pts = rows.map((r, i) => [xs(i), ys(dayKcal(r)), dayKcal(r)])
+  const path = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ')
+  const WK = ['一', '二', '三', '四', '五', '六', '日']
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block' }}>
+      <line x1={padX} y1={H - padY} x2={W - padX} y2={H - padY} stroke="var(--border)" />
+      {target && target > 0 && (() => {
+        const ty = ys(target)
+        return <line x1={padX} y1={ty} x2={W - padX} y2={ty} stroke="#9bbf8a" strokeWidth="1" strokeDasharray="5 4" />
+      })()}
+      <path d={path} fill="none" stroke="#ff8a5b" strokeWidth="2.5" />
+      {pts.map((p, i) => (
+        <g key={i}>
+          <circle cx={p[0]} cy={p[1]} r="3.5" fill="#ff8a5b" />
+          <text x={p[0]} y={p[1] - 7} fontSize="9" textAnchor="middle" fill="var(--text)">{p[2] || ''}</text>
+          <text x={p[0]} y={H - 4} fontSize="8" textAnchor="middle" fill="var(--text)">{WK[i] || ''}</text>
+        </g>
+      ))}
+      {target && target > 0 && <text x={W - padX} y={ys(target) - 4} fontSize="8" textAnchor="end" fill="#9bbf8a">目标 {target}</text>}
     </svg>
   )
 }
@@ -90,6 +147,13 @@ export default function Diet() {
   const [estimating, setEstimating] = useState(false)
   const [msg, setMsg] = useState('')
 
+  // 上周回顾
+  const lw = lastWeekRange()
+  const [lwRows, setLwRows] = useState([])
+  const [lwBusy, setLwBusy] = useState(false)
+  const [lwProgress, setLwProgress] = useState('')
+  const [targetKcal, setTargetKcal] = useState(null)
+
   async function load(date = viewDate) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
@@ -102,6 +166,21 @@ export default function Diet() {
   }
 
   useEffect(() => { load(viewDate) }, [viewDate])
+
+  // 进入页面即拉取上周记录 + 目标热量
+  useEffect(() => { loadLastWeek() }, [])
+
+  async function loadLastWeek() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { start, end } = lastWeekRange()
+    const { data: rows } = await supabase.from('diet').select('*')
+      .eq('user_id', user.id).gte('date', start).lte('date', end).order('date', { ascending: true })
+    setLwRows(rows || [])
+    const { data: hp } = await supabase.from('health_profile').select('profile').eq('user_id', user.id).maybeSingle()
+    const t = parseTargetCalories(hp?.profile?.target_calories)
+    if (t) setTargetKcal(t)
+  }
 
   async function save(field, value) {
     if (!diet) return
@@ -136,6 +215,46 @@ export default function Diet() {
       setEstimating(false)
       setTimeout(() => setMsg(''), 2500)
     }
+  }
+
+  async function recalcLastWeek() {
+    if (lwBusy) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setLwProgress('未登录，无法更新'); return }
+    // 确保有上周记录
+    let rows = lwRows
+    if (!rows.length) {
+      const { data } = await supabase.from('diet').select('*')
+        .eq('user_id', user.id).gte('date', lw.start).lte('date', lw.end).order('date', { ascending: true })
+      rows = data || []
+    }
+    if (!rows.length) { setLwProgress('上周暂无饮食记录'); return }
+    setLwBusy(true)
+    const total = rows.length
+    let done = 0
+    const out = []
+    for (const r of rows) {
+      const meals = {
+        breakfast: r.breakfast || '', lunch: r.lunch || '', dinner: r.dinner || '',
+        afternoon_tea: r.afternoon_tea || '', drinks: r.drinks || ''
+      }
+      const anyFilled = Object.values(meals).some(v => v.trim())
+      if (!anyFilled) { out.push(r); done++; setLwProgress(`已处理 ${done}/${total}`); continue }
+      try {
+        const { calories } = await api.caloriesEstimate(meals)
+        const next = { ...(r.calories && typeof r.calories === 'object' ? r.calories : {}), ...calories }
+        await supabase.from('diet').update({ calories: next }).eq('id', r.id)
+        out.push({ ...r, calories: next })
+      } catch (e) {
+        out.push(r) // 估算失败则保留原值
+      }
+      done++
+      setLwProgress(`已处理 ${done}/${total}`)
+    }
+    setLwRows(out)
+    setLwBusy(false)
+    setLwProgress('上周卡路里已重算 ✓')
+    setTimeout(() => setLwProgress(''), 2500)
   }
 
   if (!diet) return <div className="empty">加载中…</div>
@@ -210,6 +329,19 @@ export default function Diet() {
         <div className="card washi tint">
           <h3>📈 本周卡路里趋势</h3>
           <WeeklyChart rows={history} />
+        </div>
+
+        {/* 上周回顾：重算 + 曲线 */}
+        <div className="card washi tint">
+          <h3>📅 上周回顾</h3>
+          <p className="sub" style={{ marginTop: -4 }}>{lw.start} ~ {lw.end}（上周一~周日）</p>
+          <LastWeekChart rows={lwRows} target={targetKcal} />
+          <div className="kcal-summary">
+            <span>上周总摄入 <b>{lwRows.reduce((s, r) => s + dayKcal(r), 0)}</b> 千卡</span>
+            <span>日均 <b>{lwRows.length ? Math.round(lwRows.reduce((s, r) => s + dayKcal(r), 0) / lwRows.length) : 0}</b> 千卡</span>
+          </div>
+          <button className="btn ghost sm" style={{ marginTop: 10, width: 'auto' }} disabled={lwBusy} onClick={recalcLastWeek}>{lwBusy ? '重算中…' : '🔄 重算上周 7 天卡路里'}</button>
+          {lwProgress && <p className="muted center" style={{ fontSize: 13 }}>{lwProgress}</p>}
         </div>
 
         {/* 身体状况（一直显示） */}

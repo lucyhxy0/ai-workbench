@@ -321,6 +321,8 @@ label { font-size: 13px; color: var(--ink-dim); font-weight: 600; margin-top: 8p
 .kbar-track { flex: 1; height: 8px; border-radius: 99px; background: var(--paper-2); overflow: hidden; border: 1px solid var(--line); }
 .kbar-track > i { display: block; height: 100%; background: var(--peach); border-radius: 99px; }
 .kbar .kv { width: 34px; text-align: right; flex-shrink: 0; color: var(--ink-dim); }
+.kcal-summary { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 13px; color: var(--ink-dim); }
+.kcal-summary b { color: var(--primary-deep); font-size: 15px; }
 
 /* 身体状况：一直显示的体重/体脂 */
 .body-show { display: flex; gap: 12px; }
