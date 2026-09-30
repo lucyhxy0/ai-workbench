@@ -9,6 +9,7 @@ export default function Chat() {
   const [msgs, setMsgs] = useState([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [mode, setMode] = useState('chat') // chat | guide
   const scrollRef = useRef(null)
 
   async function loadSessions() {
@@ -97,23 +98,37 @@ export default function Chat() {
         right={<button className="btn ghost sm" onClick={newSession}>+新</button>}
       />
       <div className="page theme-chat" style={{ paddingBottom: 8, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8 }}>
-          {sessions.map(s => (
-            <span key={s.id} className={`tag ${s.id === cur ? '' : ''}`} style={{ cursor: 'pointer', background: s.id === cur ? 'var(--primary)' : 'var(--bg-elev)', color: s.id === cur ? '#04201a' : 'var(--text)' }} onClick={() => openSession(s.id)}>
-              {s.title.slice(0, 8)}
-            </span>
-          ))}
+        <div style={{ display: 'flex', gap: 6, paddingBottom: 8 }}>
+          <button className={`btn sm ${mode === 'chat' ? '' : 'ghost'}`} onClick={() => setMode('chat')}>💬 对话</button>
+          <button className={`btn sm ${mode === 'guide' ? '' : 'ghost'}`} onClick={() => setMode('guide')}>📖 人生指南</button>
         </div>
-        <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', paddingBottom: 12 }}>
-          {msgs.length === 0 && <div className="empty">开始和 AI 助手对话吧</div>}
-          {msgs.map((m, i) => (
-            <div key={i} className={`bubble ${m.role === 'user' ? 'user' : 'ai'}`}>{m.content || '…'}</div>
-          ))}
-        </div>
-        <div className="row" style={{ alignItems: 'flex-end', paddingTop: 8 }}>
-          <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }} placeholder="问点什么…（Enter 发送）" style={{ flex: 1, minHeight: 44, marginTop: 0 }} />
-          <button className="btn" disabled={busy} onClick={send} style={{ width: 64 }}>{busy ? '…' : '发送'}</button>
-        </div>
+        {mode === 'guide' ? (
+          <iframe
+            src="/life-guide.html"
+            title="高性价比人生指南"
+            style={{ flex: 1, width: '100%', border: 'none', borderRadius: 12, background: '#fff', minHeight: '64vh' }}
+          />
+        ) : (
+          <>
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8 }}>
+              {sessions.map(s => (
+                <span key={s.id} className={`tag ${s.id === cur ? '' : ''}`} style={{ cursor: 'pointer', background: s.id === cur ? 'var(--primary)' : 'var(--bg-elev)', color: s.id === cur ? '#04201a' : 'var(--text)' }} onClick={() => openSession(s.id)}>
+                  {s.title.slice(0, 8)}
+                </span>
+              ))}
+            </div>
+            <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', paddingBottom: 12 }}>
+              {msgs.length === 0 && <div className="empty">开始和 AI 助手对话吧</div>}
+              {msgs.map((m, i) => (
+                <div key={i} className={`bubble ${m.role === 'user' ? 'user' : 'ai'}`}>{m.content || '…'}</div>
+              ))}
+            </div>
+            <div className="row" style={{ alignItems: 'flex-end', paddingTop: 8 }}>
+              <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }} placeholder="问点什么…（Enter 发送）" style={{ flex: 1, minHeight: 44, marginTop: 0 }} />
+              <button className="btn" disabled={busy} onClick={send} style={{ width: 64 }}>{busy ? '…' : '发送'}</button>
+            </div>
+          </>
+        )}
       </div>
     </>
   )
